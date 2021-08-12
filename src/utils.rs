@@ -3,6 +3,8 @@ use std::borrow::Cow;
 use kuchiki::{Attributes, NodeRef};
 use reqwest::Url;
 
+use anyhow::*;
+
 use crate::{
     structures::{Compilable, Header, Part, TextCompound},
     text_parser::Context,
@@ -88,11 +90,14 @@ pub fn get_img_link(url: &Context, attrs: &Attributes) -> Option<Cow<'static, st
     None
 }
 
-pub fn gen_html(parts: &[Part<'_>], ctx: &Context, out_file: &str) {
-    let template = std::fs::read_to_string("template.html").unwrap();
-    let template = template.replace(
+const TEMPLATE: &'static str = include_str!("../template.html");
+
+pub fn gen_html(parts: &[Part<'_>], ctx: &Context) -> String {
+    println!("SSR {}",ctx.url.as_str());
+    TEMPLATE.replace(
         "%%CODE%%",
         &[
+            Part::Quote(TextCompound::Link(Box::new(TextCompound::Raw(Cow::Owned("Official website".to_owned()))), Cow::Owned(ctx.url.as_str().to_owned()))),
             Part::H(
                 Header::H1,
                 TextCompound::Raw(Cow::Owned(ctx.meta.title.clone().unwrap_or_default())),
@@ -104,9 +109,7 @@ pub fn gen_html(parts: &[Part<'_>], ctx: &Context, out_file: &str) {
         .flat_map(|x| x.html())
         .collect::<Vec<_>>()
         .join("\n"),
-    );
-
-    std::fs::write(out_file, template).unwrap();
+    )
 }
 
 pub fn gen_md(parts: &[Part<'_>], ctx: &Context, out_file: &str) {
@@ -149,13 +152,30 @@ pub fn get_or_join(url: &Url, string: &str, is_srcset: bool) -> Option<Cow<'stat
     }
 }
 
-pub fn http_get(url: &str) -> String {
-    reqwest::blocking::Client::new().get(url)
+pub fn http_get(url: &str) -> Result<String> {
+    Ok(reqwest::blocking::ClientBuilder::new().cookie_store(true).build().unwrap().get(url)
+    
     .header("User-Agent","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.164 Safari/537.36")
     .header("Accept-Language","fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7")
-    .header("Accept-Encoding","gzip, deflate, br")
+    .header("Accept-Encoding","gzip, deflate")
     .header("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-    .send().unwrap().text().unwrap()
+    .send()?.text()?)
+}
+
+const ORHER_THAN_HTML: &'static [&'static str] = &[
+    ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".doc", ".css", ".js", ".bmp", ".webm", ".mp4",
+    ".mp3", ".mov", ".tiff", ".tif", ".zip", ".tar", ".gz", ".7z", ".rar", ".py", ".rs", ".c",
+    ".xls", ".odt", ".ods", ".wav", ".flac", ".avi", ".m4a", ".json", ".ico", ".ttf", ".woff",
+    ".woff2",
+];
+
+pub fn is_text(url: &str) -> bool {
+    for i in ORHER_THAN_HTML {
+        if url.ends_with(i) {
+            return false;
+        }
+    }
+    true
 }
 
 pub fn remove(on: &NodeRef, selector: &str) {
@@ -167,4 +187,11 @@ pub fn remove(on: &NodeRef, selector: &str) {
             break;
         }
     }
+}
+
+pub fn sha256(data: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(data.as_bytes());
+    hex::encode(hasher.finalize())
 }

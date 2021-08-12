@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use crate::{cache::get_shortened_from_url, utils::is_text};
+
 #[derive(Debug)]
 pub enum TextCompound<'a> {
     Raw(Cow<'a, str>),
@@ -46,7 +48,18 @@ impl Compilable for TextCompound<'_> {
     fn html<'a>(&'a self) -> Option<Cow<'a, str>> {
         let k: Cow<'a, str> = match self {
             TextCompound::Raw(a) => Cow::Owned(format!("{} ", a)),
-            TextCompound::Link(a, b) => Cow::Owned(format!("<a href=\"{}\">{}</a>", b, a.html()?)),
+            TextCompound::Link(a, b) => {
+                let a = a.html()?;
+                if is_text(b.as_ref()) && !a.contains("Official website") {
+                    Cow::Owned(format!(
+                        "<a href=\"/m/{}\">{}</a>",
+                        get_shortened_from_url(b),
+                        a
+                    ))
+                } else {
+                    Cow::Owned(format!("<a href=\"{}\">{}</a>", b, a))
+                }
+            }
             TextCompound::Italic(a) => Cow::Owned(format!("<i>{} </i>", a.html()?)),
             TextCompound::Bold(a) => Cow::Owned(format!("<b>{} </b>", a.html()?)),
             TextCompound::Array(a) => {

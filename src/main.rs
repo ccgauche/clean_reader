@@ -1,21 +1,67 @@
-use std::process::exit;
+#![feature(try_blocks)]
 
-use kuchiki::traits::TendrilSink;
-use reqwest::Url;
-use utils::gen_md;
+use anyhow::*;
 
-use crate::{
-    text_parser::Context,
-    title_extractor::try_extract_data,
-    utils::{gen_html, http_get, remove},
-};
-
+mod cache;
 mod structures;
 mod text_parser;
 mod title_extractor;
 mod utils;
 
-fn main() {
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use cache::{get_file, get_shortened_from_url};
+
+use crate::cache::get_url_for_shortened;
+
+#[get("/r/{base64url}")]
+async fn index_r(web::Path(base64url): web::Path<String>) -> HttpResponse {
+    let output: Result<String> = try {
+        let url = String::from_utf8(base64::decode(base64url)?)?;
+        get_shortened_from_url(&url)
+    };
+    match output {
+        Ok(e) => HttpResponse::MovedPermanently()
+            .set_header("location", format!("/m/{}", e))
+            .body(""),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
+}
+
+#[get("/m/{short}")]
+async fn index_m(web::Path(short): web::Path<String>) -> HttpResponse {
+    let output: Result<String> = try {
+        let url =
+            get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;
+        println!("{}", url);
+        get_file(&url)?
+    };
+    match output {
+        Ok(e) => HttpResponse::Ok().content_type("text/html").body(e),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
+}
+
+#[get("/dist/index.css")]
+async fn index_css() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/css")
+        .body(include_str!("../dist/index.css"))
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new()
+            .service(index_r)
+            .service(index_m)
+            .service(index_css)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
+}
+
+/* fn main() {
     let args = std::env::args();
     if args.len() != 3 {
         println!("expected <OUTPUT FILE (.html or .md)> <URL>");
@@ -68,3 +114,4 @@ fn main() {
         );
     }
 }
+ */
