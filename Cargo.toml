@@ -1,0 +1,17 @@
+[package]
+name = "clean_read_v2"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kuchiki = "*"
+reqwest = { version = "*", features = [
+    "blocking",
+    "gzip",
+    "deflate",
+    "brotli",
+] }
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"

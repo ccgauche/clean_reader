@@ -1,0 +1,45 @@
+body, html {
+  margin: 0;
+  color: #FFF;
+  background-color: #222;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 30rem;
+  margin: auto;
+}
+
+a {
+  color: #3498db;
+}
+
+quote {
+  border-left: 4px solid #AAA;
+  display: block;
+  padding: 0.5rem 0rem;
+  margin: 0.5rem 0rem;
+  padding-left: 1rem;
+  color: #ababab;
+}
+
+img {
+  display: block;
+  max-width: 30rem;
+}
+
+table {
+  border: 1px solid white;
+  border-collapse: collapse;
+  overflow-x: auto;
+  max-width: 100%;
+  width: max-content;
+  display: block;
+}
+table th, table td {
+  border: 1px solid white;
+  padding: 6px 13px;
+}
+table tr:nth-child(2n+1) {
+  background-color: #FFF1;
+}
