@@ -1,9 +1,9 @@
 #![feature(try_blocks)]
-
 use anyhow::*;
 
 mod cache;
 mod structures;
+mod synthax;
 mod text_parser;
 mod title_extractor;
 mod utils;
@@ -16,7 +16,7 @@ use crate::cache::get_url_for_shortened;
 #[get("/r/{base64url}")]
 async fn index_r(web::Path(base64url): web::Path<String>) -> HttpResponse {
     let output: Result<String> = try {
-        let url = String::from_utf8(base64::decode(base64url)?)?;
+        let url = String::from_utf8(base64::decode(base64url.replace("_", "/"))?)?;
         get_shortened_from_url(&url)
     };
     match output {

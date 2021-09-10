@@ -48,15 +48,21 @@ pub fn get_shortened_from_url(url: &str) -> String {
     short.to_owned()
 }
 
+const CACHE_ENABLED: bool = false;
+
 pub fn get_file(url: &str) -> Result<String> {
-    let cache_file = format!("cache/{}.html", sha256(url));
-    Ok(if let Some(e) = std::fs::read_to_string(&cache_file).ok() {
-        e
+    if CACHE_ENABLED {
+        let cache_file = format!("cache/{}.html", sha256(url));
+        Ok(if let Some(e) = std::fs::read_to_string(&cache_file).ok() {
+            e
+        } else {
+            let html = get_html(url)?;
+            std::fs::write(cache_file, &html)?;
+            html
+        })
     } else {
-        let html = get_html(url)?;
-        std::fs::write(cache_file, &html)?;
-        html
-    })
+        get_html(url)
+    }
 }
 
 fn get_html(url: &str) -> Result<String> {

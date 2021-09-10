@@ -13,6 +13,8 @@ pub enum TextCompound<'a> {
     Sup(Box<TextCompound<'a>>),
     Sub(Box<TextCompound<'a>>),
     Small(Box<TextCompound<'a>>),
+    Code(Cow<'a, str>),
+    Img(Cow<'a, str>),
     Br,
 }
 
@@ -38,7 +40,9 @@ impl Compilable for TextCompound<'_> {
             TextCompound::Sup(a) => Cow::Owned(format!("^{}^", a.markdown()?)),
             TextCompound::Sub(a) => Cow::Owned(format!("~{}~", a.markdown()?)),
             TextCompound::Small(a) => Cow::Owned(format!("~^{}^~", a.markdown()?)),
-            TextCompound::Br => Cow::Owned("\n".to_owned()),
+            TextCompound::Br => Cow::Borrowed("\n"),
+            TextCompound::Code(a) => Cow::Owned(format!("\n```\n{}\n```\n", a)),
+            TextCompound::Img(a) => Cow::Owned(format!("![{}]({})", a, a)),
         };
         if k.trim().is_empty() && !matches!(self, TextCompound::Br) {
             return None;
@@ -47,7 +51,7 @@ impl Compilable for TextCompound<'_> {
     }
     fn html<'a>(&'a self) -> Option<Cow<'a, str>> {
         let k: Cow<'a, str> = match self {
-            TextCompound::Raw(a) => Cow::Owned(format!("{} ", a)),
+            TextCompound::Raw(a) => Cow::Owned(format!("{} ", html_escape::encode_text(a))),
             TextCompound::Link(a, b) => {
                 let a = a.html()?;
                 if is_text(b.as_ref()) && !a.contains("Official website") {
@@ -72,6 +76,20 @@ impl Compilable for TextCompound<'_> {
             TextCompound::Sub(a) => Cow::Owned(format!("<sub>{} </sub>", a.html()?)),
             TextCompound::Small(a) => Cow::Owned(format!("<small>{} </small>", a.html()?)),
             TextCompound::Br => Cow::Owned("<br/>".to_owned()),
+            TextCompound::Code(a) => {
+                if a.contains("\n") {
+                    Cow::Owned(format!(
+                        "<pre><code>{}</code></pre>",
+                        html_escape::encode_text(a)
+                    ))
+                } else {
+                    Cow::Owned(format!(
+                        "<code>{}&nbsp;</code>",
+                        html_escape::encode_text(a)
+                    ))
+                }
+            }
+            TextCompound::Img(a) => Cow::Owned(format!("<img src=\"{}\">", a)),
         };
         if k.trim().is_empty() {
             return None;
@@ -84,7 +102,6 @@ impl Compilable for TextCompound<'_> {
 pub enum Part<'a> {
     H(Header, TextCompound<'a>),
     P(TextCompound<'a>),
-    Img(Cow<'a, str>),
     Quote(TextCompound<'a>),
     PlainText(TextCompound<'a>),
     Ul(Vec<TextCompound<'a>>),
@@ -121,7 +138,6 @@ impl Compilable for Part<'_> {
                     .join(""),
             )),
             Part::P(a) => a.markdown(),
-            Part::Img(a) => Some(Cow::Owned(format!("![{}]({})", a, a))),
             Part::PlainText(a) => a.markdown(),
             Part::Table(a) => {
                 let mut iter = a.iter();
@@ -158,7 +174,6 @@ impl Compilable for Part<'_> {
 
     fn html<'a>(&'a self) -> Option<Cow<'a, str>> {
         match self {
-            Part::Img(a) => Some(Cow::Owned(format!("<img src=\"{}\">", a))),
             Part::H(a, b) => {
                 let header = match a {
                     Header::H1 => 1,
@@ -182,7 +197,7 @@ impl Compilable for Part<'_> {
                     .join("")
             ))),
             Part::P(a) => Some(Cow::Owned(format!("<p>{}</p>", a.html()?))),
-            Part::PlainText(a) => Some(Cow::Owned(format!("{}", a.html()?))),
+            Part::PlainText(a) => Some(Cow::Owned(format!("{}", &a.html()?))),
             Part::Table(a) => {
                 let mut string = String::from("<table>");
                 for i in a {

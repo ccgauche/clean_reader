@@ -10,6 +10,7 @@ use reqwest::Url;
 
 use crate::{
     structures::{Header, Part, TextCompound},
+    synthax::code_from_div,
     title_extractor::ArticleData,
     utils::{get_img_link, valid_text},
 };
@@ -145,7 +146,6 @@ const TEXT_ONLY_ELEMENTS: &'static [&'static str] = &[
     "span",
     "p",
     "pre",
-    "code",
     "h1",
     "h2",
     "h3",
@@ -159,6 +159,7 @@ const TEXT_ONLY_ELEMENTS: &'static [&'static str] = &[
     "sup",
     "cite",
     "blockquote",
+    "code",
     "q",
 ];
 
@@ -207,12 +208,19 @@ pub fn extract_text_image_parts(ctx: &Context, node: &NodeRef, parts: &mut Vec<N
         if ELEMENTS_TO_IGNORE.iter().any(|x| x == &local) {
             return;
         }
-        if valid_text(&node.text_contents(), ctx, &local) || node.text_contents().trim().is_empty()
+        let k = local == "div"
+            && e.attributes
+                .borrow()
+                .get("class")
+                .map(|x| x.contains("highlight"))
+                .unwrap_or(false);
+        if k || (valid_text(&node.text_contents(), ctx, &local)
+            || node.text_contents().trim().is_empty())
         {
             let to_find = node.parent().unwrap();
             parts.retain(|x| x != &to_find);
             parts.push(node.clone());
-            if !TEXT_ONLY_ELEMENTS.iter().any(|x| x == &local) {
+            if !k && !TEXT_ONLY_ELEMENTS.iter().any(|x| x == &local) {
                 node.children()
                     .for_each(|x| extract_text_image_parts(ctx, &x, parts));
             }
@@ -264,12 +272,18 @@ pub fn parse(ctx: &Context, node: &NodeRef, parts: &mut Vec<Part<'static>>) {
                 }),
             );
             parts.push(k)
-        } else if local == "img" {
-            if let Some(p) = get_img_link(ctx, &*e.attributes.borrow()) {
-                parts.push(Part::Img(p))
-            } else {
-                ("Invalid image {:?}", e);
-            }
+        } else if local == "code"
+            || local == "pre"
+            || (local == "div"
+                && e.attributes
+                    .borrow()
+                    .get("class")
+                    .map(|x| x.contains("highlight"))
+                    .unwrap_or(false))
+        {
+            parts.push(Part::PlainText(TextCompound::Code(Cow::Owned(
+                code_from_div(node),
+            ))));
         } else if local == "h2" {
             let o = Part::H(
                 Header::H2,
@@ -518,6 +532,16 @@ pub fn to_text<'a>(
                 }
                 i
             }))))
+        } else if local == "code"
+            || local == "pre"
+            || (local == "div"
+                && e.attributes
+                    .borrow()
+                    .get("class")
+                    .map(|x| x.contains("highlight"))
+                    .unwrap_or(false))
+        {
+            Some(TextCompound::Code(Cow::Owned(code_from_div(node))))
         } else if local == "b" || local == "strong" {
             Some(TextCompound::Bold(Box::new(TextCompound::Array({
                 let i = node
@@ -642,11 +666,11 @@ pub fn to_text<'a>(
             }))
         } else if local == "img" {
             if let Some(p) = get_img_link(ctx, &*e.attributes.borrow()) {
-                parts.push(Part::Img(p))
+                Some(TextCompound::Img(p))
             } else {
                 println!("Invalid image {:?}", e);
+                None
             }
-            None
         } else if local == "h3" || local == "h2" || local == "h1" || local == "h4" || local == "h5"
         {
             let o = Part::H(

@@ -23,6 +23,9 @@ const blacklists: &'static [(&'static [&'static str], usize)] = &[
 ];
 
 pub fn valid_text(text: &str, title: &Context, element: &str) -> bool {
+    if element == "code" || element == "div" {
+        return true;
+    }
     let p = text
         .to_lowercase()
         .chars()
@@ -84,6 +87,11 @@ pub fn get_img_link(url: &Context, attrs: &Attributes) -> Option<Cow<'static, st
             .map(|x| get_or_join(&url.url, x, *i == "data-src"))
             .flatten()
         {
+            if let Some(k) = &url.meta.image {
+                if k == e.as_ref() {
+                    return None;
+                }
+            }
             return Some(e);
         }
     }
@@ -102,7 +110,7 @@ pub fn gen_html(parts: &[Part<'_>], ctx: &Context) -> String {
                 Header::H1,
                 TextCompound::Raw(Cow::Owned(ctx.meta.title.clone().unwrap_or_default())),
             ),
-            Part::Img(Cow::Owned(ctx.meta.image.clone().unwrap_or_default())),
+            Part::PlainText(TextCompound::Img(Cow::Owned(ctx.meta.image.clone().unwrap_or_default()))),
         ]
         .iter()
         .chain(parts.iter())
@@ -118,7 +126,7 @@ pub fn gen_md(parts: &[Part<'_>], ctx: &Context, out_file: &str) {
             Header::H1,
             TextCompound::Raw(Cow::Owned(ctx.meta.title.clone().unwrap_or_default())),
         ),
-        Part::Img(Cow::Owned(ctx.meta.image.clone().unwrap_or_default())),
+        Part::PlainText(TextCompound::Img(Cow::Owned(ctx.meta.image.clone().unwrap_or_default()))),
     ]
     .iter()
     .chain(parts.iter())
