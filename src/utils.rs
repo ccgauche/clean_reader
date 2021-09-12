@@ -1,16 +1,13 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use kuchiki::{Attributes, NodeRef};
 use reqwest::Url;
 
 use anyhow::*;
 
-use crate::{
-    structures::{Compilable, Header, Part, TextCompound},
-    text_parser::Context,
-};
+use crate::{new_arch::text_element, structures::{Compilable, Header, Part, TextCompound}, text_parser::Context};
 
-const blacklists: &'static [(&'static [&'static str], usize)] = &[
+const BLACKLISTS: & [(&[&str], usize)] = &[
     (&["abonn", "rserv"], 100),
     (&["lireaussi"], 100),
     (&["partage"], 200),
@@ -29,13 +26,9 @@ pub fn valid_text(text: &str, title: &Context, element: &str) -> bool {
     let p = text
         .to_lowercase()
         .chars()
-        .filter(|x| match x {
-            'a'..='z' | '\'' => true,
-
-            _ => false,
-        })
+        .filter(|x| matches!(x, 'a'..='z' | '\''))
         .collect::<String>();
-    'a: for (a, b) in blacklists {
+    'a: for (a, b) in BLACKLISTS {
         if p.len() > *b {
             continue;
         }
@@ -51,41 +44,39 @@ pub fn valid_text(text: &str, title: &Context, element: &str) -> bool {
         let p1 = e
             .to_lowercase()
             .chars()
-            .filter(|x| match x {
-                'a'..='z' | '\'' => true,
-
-                _ => false,
-            })
+            .filter(|x| matches!(x, 'a'..='z' | '\'' ))
             .collect::<String>();
         if p == p1 {
             return false;
         }
     }
-    if element.starts_with("h") && element.len() == 2 {
+    if element.starts_with('h') && element.len() == 2 {
         return p.len() > 3;
     }
 
     p.len() > 10
 }
 
-const TO_SEARCH: &'static [&'static str] = &[
+/* const TO_SEARCH: & [&str] = &[
     "data-src-large",
     "data-echo",
     "data-original",
     "data-src",
     "src",
     "srcset",
+    "url",
+    "contentUrl",
+    "data-image-dataset",
     "data-li-src",
-];
+]; */
 
-pub fn get_img_link(url: &Context, attrs: &Attributes) -> Option<Cow<'static, str>> {
-    println!("{:?}", attrs);
-
-    for i in TO_SEARCH {
-        if let Some(e) = attrs
-            .get(*i)
-            .map(|x| get_or_join(&url.url, x, *i == "data-src"))
-            .flatten()
+pub fn get_img_link_map(url: &Context, attrs: &HashMap<String,String>) -> Option<Cow<'static, str>> {
+    for (a,value) in attrs {
+        if !matches!(a.as_str(), "alt" | "class" | "size" | "width" | "height") {
+            if value.contains("/") || value.ends_with(".jpg") || value.ends_with(".jpeg")
+            || value.ends_with(".webm")|| value.ends_with(".tiff")|| value.ends_with(".png")|| value.ends_with(".bmp")
+            || value.ends_with(".gif")|| value.ends_with(".svg") {
+                if let Some(e) = get_or_join(&url.url, value)
         {
             if let Some(k) = &url.meta.image {
                 if k == e.as_ref() {
@@ -94,17 +85,22 @@ pub fn get_img_link(url: &Context, attrs: &Attributes) -> Option<Cow<'static, st
             }
             return Some(e);
         }
+            }
+        }
     }
     None
 }
+pub fn get_img_link(url: &Context, attrs: &Attributes) -> Option<Cow<'static, str>> {
+    get_img_link_map(url,&attrs.map.iter().map(|x| {
+        (x.0.local.to_string(),x.1.value.clone())
+    }).collect())
+}
 
-const TEMPLATE: &'static str = include_str!("../template.html");
+const TEMPLATE: &str = include_str!("../template.html");
 
 pub fn gen_html(parts: &[Part<'_>], ctx: &Context) -> String {
     println!("SSR {}",ctx.url.as_str());
-    TEMPLATE.replace(
-        "%%CODE%%",
-        &[
+    let k = &[
             Part::Quote(TextCompound::Link(Box::new(TextCompound::Raw(Cow::Owned("Official website".to_owned()))), Cow::Owned(ctx.url.as_str().to_owned()))),
             Part::H(
                 Header::H1,
@@ -116,11 +112,56 @@ pub fn gen_html(parts: &[Part<'_>], ctx: &Context) -> String {
         .chain(parts.iter())
         .flat_map(|x| x.html())
         .collect::<Vec<_>>()
-        .join("\n"),
+        .join("\n");
+    if k.contains("<code>") {
+        TEMPLATE.replace("%%start:code%%", "").replace("%%end%%","").replace(
+            "%%CODE%%",
+            k,
+        )
+    } else {
+        use regex::Regex;
+        let re = Regex::new(r"%%start:code%%[^%]+%%end%%").unwrap();
+        re.replace_all(TEMPLATE, "")
+    .replace(
+        "%%CODE%%",
+        k,
     )
+    }
 }
 
-pub fn gen_md(parts: &[Part<'_>], ctx: &Context, out_file: &str) {
+pub fn gen_html_2(parts: &[text_element::TextCompound], ctx: &Context) -> String {
+    println!("SSR {}",ctx.url.as_str());
+    let k = 
+        &[
+            text_element::TextCompound::Quote(box text_element::TextCompound::Link(Box::new(text_element::TextCompound::Raw("Official website".to_owned())), ctx.url.as_str().to_owned())),
+            text_element::TextCompound::H(
+                text_element::Header::H1,
+                box text_element::TextCompound::Raw(ctx.meta.title.clone().unwrap_or_default()),
+            ),
+            text_element::TextCompound::Img(ctx.meta.image.clone().unwrap_or_default()),
+        ]
+        .iter()
+        .chain(parts.iter())
+        .flat_map(|x| text_element::Compilable::html(x))
+        .collect::<Vec<_>>()
+        .join("\n");
+    if k.contains("<code>") {
+        TEMPLATE.replace("%%start:code%%", "").replace("%%end%%","").replace(
+            "%%CODE%%",
+            k,
+        )
+    } else {
+        use regex::Regex;
+        let re = Regex::new(r"%%start:code%%[^%]+%%end%%").unwrap();
+        re.replace_all(TEMPLATE, "")
+    .replace(
+        "%%CODE%%",
+        k,
+    )
+    }
+}
+
+/* pub fn gen_md(parts: &[Part<'_>], ctx: &Context, out_file: &str) {
     let template = [
         Part::H(
             Header::H1,
@@ -135,16 +176,16 @@ pub fn gen_md(parts: &[Part<'_>], ctx: &Context, out_file: &str) {
     .join("\n");
 
     std::fs::write(out_file, template).unwrap();
-}
+} */
 
-pub fn get_or_join(url: &Url, string: &str, is_srcset: bool) -> Option<Cow<'static, str>> {
-    let string = if is_srcset {
+pub fn get_or_join(url: &Url, string: &str) -> Option<Cow<'static, str>> {
+    let string = if string.contains(" ") {
         string
-            .split(",")
+            .split(',')
             .next()
             .unwrap()
             .trim()
-            .split(" ")
+            .split(' ')
             .next()
             .unwrap()
     } else {
@@ -170,7 +211,7 @@ pub fn http_get(url: &str) -> Result<String> {
     .send()?.text()?)
 }
 
-const ORHER_THAN_HTML: &'static [&'static str] = &[
+const ORHER_THAN_HTML: & [&str] = &[
     ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".doc", ".css", ".js", ".bmp", ".webm", ".mp4",
     ".mp3", ".mov", ".tiff", ".tif", ".zip", ".tar", ".gz", ".7z", ".rar", ".py", ".rs", ".c",
     ".xls", ".odt", ".ods", ".wav", ".flac", ".avi", ".m4a", ".json", ".ico", ".ttf", ".woff",

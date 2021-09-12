@@ -1,6 +1,6 @@
 use std::{fs::OpenOptions, io::Write};
 
-use crate::text_parser::Context;
+use crate::{new_arch::run_v2, text_parser::Context};
 use anyhow::*;
 use dashmap::DashMap;
 use kuchiki::traits::TendrilSink;
@@ -13,10 +13,10 @@ use crate::{
     utils::{gen_html, http_get, remove, sha256},
 };
 
-const URLS: Lazy<DashMap<String, String>> = Lazy::new(|| {
-    if let Some(e) = std::fs::read_to_string("db.json").ok() {
+static URLS: Lazy<DashMap<String, String>> = Lazy::new(|| {
+    if let Ok(e) = std::fs::read_to_string("db.json") {
         e.lines()
-            .filter(|x| x.contains("|"))
+            .filter(|x| x.contains('|'))
             .map(|x| {
                 let barre = x.find('|').unwrap();
                 (x[0..barre].to_owned(), x[barre + 1..].to_owned())
@@ -53,15 +53,15 @@ const CACHE_ENABLED: bool = false;
 pub fn get_file(url: &str) -> Result<String> {
     if CACHE_ENABLED {
         let cache_file = format!("cache/{}.html", sha256(url));
-        Ok(if let Some(e) = std::fs::read_to_string(&cache_file).ok() {
+        Ok(if let Ok(e) = std::fs::read_to_string(&cache_file) {
             e
         } else {
-            let html = get_html(url)?;
+            let html = run_v2(url)?;
             std::fs::write(cache_file, &html)?;
             html
         })
     } else {
-        get_html(url)
+        run_v2(url)
     }
 }
 
@@ -96,7 +96,7 @@ fn get_html(url: &str) -> Result<String> {
         url: Url::parse(url)?,
     };
     Ok(gen_html(
-        &text_parser::clean_html(&document.select_first("body").unwrap().as_node(), &ctx),
+        &text_parser::clean_html(document.select_first("body").unwrap().as_node(), &ctx),
         &ctx,
     ))
 }

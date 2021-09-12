@@ -18,8 +18,7 @@ use crate::{
 /**
 All the element that won't get any computing (Automaticaly deletted when seen)
 */
-const ELEMENTS_TO_IGNORE: &'static [&'static str] =
-    &["script", "link", "style", "nav", "footer", "header"];
+const ELEMENTS_TO_IGNORE: &[&str] = &["script", "link", "style", "nav", "footer", "header"];
 
 /**
 This function converts the raw html tree to the IR.
@@ -47,7 +46,7 @@ fn insert_or_increment<T: Eq + Hash, E: AddAssign + Default + Clone>(
     if let Some(a) = map.get_mut(&key) {
         *a += one;
     } else {
-        map.insert(key, one.clone());
+        map.insert(key, one);
     }
 }
 
@@ -61,9 +60,9 @@ impl Hash for NodeRefWrapper {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         if let Some(e) = self.0.as_text() {
             state.write(e.borrow().as_bytes())
-        } else if let Some(_) = self.0.as_document() {
+        } else if self.0.as_document().is_some() {
             state.write_i8(2);
-        } else if let Some(_) = self.0.as_doctype() {
+        } else if self.0.as_doctype().is_some() {
             state.write_i8(3);
         } else if let Some(e) = self.0.as_element() {
             state.write(format!("{:?}", e).as_bytes());
@@ -78,7 +77,7 @@ Scoring map:
 This defines How much points gives each element.
 a and h2 is 0 because they are often used in navs and related articles footers.
 */
-const EMAP: &'static [(&'static str, u32)] = &[("p", 4), ("a", 0), ("h2", 0)];
+const EMAP: &[(&str, u32)] = &[("p", 4), ("a", 0), ("h2", 0)];
 
 /**
 This functions finds where the article body is using text repartition on the webpage and element scoring.
@@ -93,7 +92,7 @@ pub fn find_main_content(vec: &[NodeRef]) -> NodeRef {
         let k = if let Some(e) = i.as_element() {
             let local = e.name.local.borrow().to_string();
             EMAP.iter()
-                .find(|(x, _)| *x == &local)
+                .find(|(x, _)| *x == local)
                 .map(|(_, x)| *x)
                 .unwrap_or(1)
         } else {
@@ -114,7 +113,6 @@ pub fn find_main_content(vec: &[NodeRef]) -> NodeRef {
     }
     let (c, d) = find_best(map3);
     if (d as f32 * 0.6) as u32 > b {
-        b = d;
         a = c;
     }
     a
@@ -137,7 +135,7 @@ fn find_best(map1: HashMap<NodeRefWrapper, u32>) -> (NodeRef, u32) {
 /**
 List of elements that will not be checked for text content since they always contains text
 */
-const TEXT_ONLY_ELEMENTS: &'static [&'static str] = &[
+const TEXT_ONLY_ELEMENTS: &[&str] = &[
     "a",
     "i",
     "s",
@@ -247,10 +245,10 @@ pub fn parse(ctx: &Context, node: &NodeRef, parts: &mut Vec<Part<'static>>) {
                 return;
             }
         }
-        if !(node.text_contents().trim().is_empty() && contains_img(node)) {
-            if !valid_text(&node.text_contents(), ctx, &local) {
-                return;
-            }
+        if !(valid_text(&node.text_contents(), ctx, &local)
+            || node.text_contents().trim().is_empty() && contains_img(node))
+        {
+            return;
         }
         if e.attributes.borrow().contains("data-move-to")
             || e.attributes.borrow().contains("hidden")
@@ -471,8 +469,7 @@ pub fn parse(ctx: &Context, node: &NodeRef, parts: &mut Vec<Part<'static>>) {
         parts.push(Part::PlainText(TextCompound::Raw(Cow::Owned(
             e.borrow().to_owned(),
         ))))
-    } else if let Some(e) = node.as_comment() {
-    } else {
+    } else if node.as_comment().is_none() {
         println!("ERROR NODE")
     }
 }
@@ -488,7 +485,7 @@ pub fn contains_img(node: &NodeRef) -> bool {
             return true;
         }
     }
-    return false;
+    false
 }
 
 /**
@@ -511,10 +508,11 @@ pub fn to_text<'a>(
                 return None;
             }
         }
-        if !node.text_contents().trim().is_empty() {
-            if need_check && !valid_text(&node.text_contents(), ctx, &local) {
-                return None;
-            }
+        if !node.text_contents().trim().is_empty()
+            && need_check
+            && !valid_text(&node.text_contents(), ctx, &local)
+        {
+            return None;
         }
         if e.attributes.borrow().contains("data-move-to")
             || e.attributes.borrow().contains("hidden")

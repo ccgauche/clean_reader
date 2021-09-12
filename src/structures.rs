@@ -19,12 +19,12 @@ pub enum TextCompound<'a> {
 }
 
 pub trait Compilable {
-    fn markdown<'a>(&'a self) -> Option<Cow<'a, str>>;
-    fn html<'a>(&'a self) -> Option<Cow<'a, str>>;
+    fn markdown(&self) -> Option<Cow<str>>;
+    fn html(&self) -> Option<Cow<str>>;
 }
 
 impl Compilable for TextCompound<'_> {
-    fn markdown<'a>(&'a self) -> Option<Cow<'a, str>> {
+    fn markdown(&self) -> Option<Cow<str>> {
         let k = match self {
             TextCompound::Raw(a) => a.clone(),
             TextCompound::Link(a, b) => Cow::Owned(format!("[{}]({})", a.markdown()?, b)),
@@ -77,7 +77,7 @@ impl Compilable for TextCompound<'_> {
             TextCompound::Small(a) => Cow::Owned(format!("<small>{} </small>", a.html()?)),
             TextCompound::Br => Cow::Owned("<br/>".to_owned()),
             TextCompound::Code(a) => {
-                if a.contains("\n") {
+                if a.contains('\n') {
                     Cow::Owned(format!(
                         "<pre><code>{}</code></pre>",
                         html_escape::encode_text(a)
@@ -118,7 +118,7 @@ pub enum Header {
 }
 
 impl Compilable for Part<'_> {
-    fn markdown<'a>(&'a self) -> Option<Cow<'a, str>> {
+    fn markdown(&self) -> Option<Cow<str>> {
         match self {
             Part::H(a, b) => Some(Cow::Owned(format!(
                 "{} {}",
@@ -172,7 +172,7 @@ impl Compilable for Part<'_> {
         }
     }
 
-    fn html<'a>(&'a self) -> Option<Cow<'a, str>> {
+    fn html(&self) -> Option<Cow<str>> {
         match self {
             Part::H(a, b) => {
                 let header = match a {

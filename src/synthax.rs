@@ -10,12 +10,10 @@ fn code_from_div_inner(node: &NodeRef, code: &mut String) {
     if let Some(e) = node.as_element() {
         let local = e.name.local.to_string();
         if let Some(e) = e.attributes.borrow().get("class") {
-            if local == "div" {
-                if e.contains("line") {
-                    code.push_str(&node.text_contents());
-                    code.push('\n');
-                    return;
-                }
+            if local == "div" && e.contains("line") {
+                code.push_str(&node.text_contents());
+                code.push('\n');
+                return;
             }
         }
         for i in node.children() {

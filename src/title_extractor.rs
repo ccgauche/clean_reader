@@ -6,12 +6,23 @@ pub struct ArticleData {
     pub title: Option<String>,
 }
 
-const TITLE_PROPERTIES: &'static [&'static str] =
-    &["og:title", "title", "twiter:title", "discord:title"];
+const TITLE_PROPERTIES: &[&str] = &["og:title", "title", "twiter:title", "discord:title"];
 
-const IMAGE_PROPERTIES: &'static [&'static str] =
-    &["og:image", "image", "twiter:image", "discord:image"];
+const IMAGE_PROPERTIES: &[&str] = &["og:image", "image", "twiter:image", "discord:image"];
 
+pub fn try_images_data(node: &NodeRef) -> Vec<String> {
+    let mut p = Vec::new();
+    for k in node.select("meta").unwrap() {
+        let attrs = k.attributes.borrow();
+        let prop = attrs.get("property").unwrap_or_default();
+        for image in IMAGE_PROPERTIES {
+            if prop.contains("image") {
+                p.push(attrs.get("content").map(|x| x.to_string()).unwrap());
+            }
+        }
+    }
+    p
+}
 pub fn try_extract_data(node: &NodeRef) -> ArticleData {
     let mut p = ArticleData::default();
     for k in node.select("meta").unwrap() {
