@@ -101,13 +101,22 @@ pub enum DataType {
     FONT,
     IMG,
 }
+pub fn filter_names(string: &str) -> &str {
+    if string.contains("img") {
+        "img"
+    } else if string.contains("source") {
+        "source"
+    } else {
+        string
+    }
+}
 fn read_html(string: &str, url: &Url, state: &mut CounterState) {
     pub fn inner(nr: &NodeRef, state: &mut CounterState, url: &Url) {
         for i in nr.children() {
             inner(&i, state, url);
         }
         if let Some(e) = nr.as_element() {
-            match e.name.local.to_string().as_str() {
+            match filter_names(e.name.local.to_string().as_str()) {
                 "link" => {
                     if let Some(a) = e.attributes.borrow().get("href") {
                         if let Some(b) = e.attributes.borrow().get("rel") {

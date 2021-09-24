@@ -7,6 +7,7 @@ use crate::{
 
 use super::{
     text_element::{Header, TextCompound},
+    website_data_counter::{self, filter_names},
     HTMLNode,
 };
 
@@ -37,14 +38,14 @@ impl TextCompound {
     }
     pub fn from_html_node(ctx: &Context, node: &HTMLNode) -> Option<Self> {
         match node {
-            HTMLNode::Node(a, b, c) => match a.as_str() {
+            HTMLNode::Node(a, b, c) => match filter_names(a.as_str()) {
                 "div" | "section" | "main" | "article" | "html" | "body" => {
                     Self::from_html_node_array(ctx, c)
                 }
                 "p" | "time" => Some(TextCompound::P(box Self::from_html_node_array(ctx, c)?)),
                 "a" => Some(TextCompound::Link(
                     box Self::from_html_node_array(ctx, c)?,
-                    b.get("href").cloned().unwrap_or_default(),
+                    ctx.absolutize(&b.get("href").cloned().unwrap_or_default()),
                 )),
                 "i" | "em" => Some(TextCompound::Italic(box Self::from_html_node_array(
                     ctx, c,

@@ -234,6 +234,15 @@ pub struct Context {
     pub meta: ArticleData,
 }
 
+impl Context {
+    pub fn absolutize(&self, url: &str) -> String {
+        self.url
+            .join(url)
+            .map(|x| x.to_string())
+            .unwrap_or_else(|_| url.to_owned())
+    }
+}
+
 /**
 Parse lambda HTML to parts.
 */

@@ -2,7 +2,10 @@ use std::{borrow::Borrow, collections::HashMap, fmt::Display};
 
 use kuchiki::NodeRef;
 
-use crate::{new_arch::score::best_node, utils::gen_html_2};
+use crate::{
+    new_arch::{score::best_node, website_data_counter::filter_names},
+    utils::gen_html_2,
+};
 
 mod score;
 pub mod text_element;
@@ -48,30 +51,30 @@ const ALLOW_OVERIDE: &[&str] = &[
 const ALLOWED_ALONE: &[&str] = &["br", "hr", "img"];
 
 const IDS: &[&str] = &[
-    "capping",
-    "comment",
-    "related",
-    "aside",
-    "advert",
-    "inread",
-    "carousel",
-    "video",
-    "newsletter",
-    "widget",
-    "tools",
-    "login",
-    "signin",
-    "signout",
-    "sign-in",
-    "sign-out",
-    "subscribe",
-    "register",
-    "service",
-    "share",
-    "navbar",
+    // "capping",
+    // "comment",
+    // "related",
+    // "aside",
+    // "advert",
+    // "inread",
+    // "carousel",
+    // "video",
+    // "newsletter",
+    // "widget",
+    // "tools",
+    // "login",
+    // "signin",
+    // "signout",
+    // "sign-in",
+    // "sign-out",
+    // "subscribe",
+    // "register",
+    // "service",
+    // "share",
+    // "navbar",
 ];
 
-const ID: &[&str] = &["ads", "ad", "pub", "nav"];
+const ID: &[&str] = &[/* "ads", "ad", "pub", "nav" */];
 
 fn check_attribute(
     plurial: &[&str],
@@ -109,7 +112,8 @@ impl HTMLNode {
                     .map(|_| ("document".to_owned(), HashMap::new()))
             })
         {
-            if SKIP_ELEMENTS.contains(&name.as_str()) {
+            let name = filter_names(&name);
+            if SKIP_ELEMENTS.contains(&name) {
                 return None;
             }
             if !check_attribute(IDS, ID, "id", &attrs) || !check_attribute(IDS, ID, "class", &attrs)
@@ -120,12 +124,12 @@ impl HTMLNode {
                 .children()
                 .flat_map(HTMLNode::from_node_ref)
                 .collect::<Vec<_>>();
-            if ALLOWED_ALONE.contains(&name.as_str()) {
-                return Some(HTMLNode::Node(name, attrs, childrens));
+            if ALLOWED_ALONE.contains(&name) {
+                return Some(HTMLNode::Node(name.to_owned(), attrs, childrens));
             }
             if childrens.is_empty() {
                 None
-            } else if ALLOW_OVERIDE.contains(&name.as_str())
+            } else if ALLOW_OVERIDE.contains(&name)
                 && childrens.len() == 1
                 && childrens
                     .last()
@@ -134,7 +138,7 @@ impl HTMLNode {
             {
                 childrens.pop()
             } else {
-                Some(HTMLNode::Node(name, attrs, childrens))
+                Some(HTMLNode::Node(name.to_owned(), attrs, childrens))
             }
         } else if let Some(e) = noderef.as_text() {
             if e.borrow().trim().is_empty() {
