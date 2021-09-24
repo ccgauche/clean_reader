@@ -101,9 +101,7 @@ impl TextCompound {
             TextCompound::Raw(a) => (format!("{} ", html_escape::encode_text(a))),
             TextCompound::Link(a, b) => {
                 let a = a.html(ctx)?;
-                if b.starts_with("#") {
-                    format!("<a href=\"{}\">{}</a>", b, a)
-                } else if is_text(b.as_ref()) && !a.contains("Official website") {
+                if !b.starts_with("#") && is_text(b.as_ref()) && !a.contains("Official website") {
                     format!("<a href=\"/m/{}\">{}</a>", get_shortened_from_url(b), a)
                 } else {
                     format!("<a href=\"{}\">{}</a>", b, a)

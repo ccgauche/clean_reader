@@ -43,7 +43,7 @@ pub fn get_shortened_from_url(url: &str) -> String {
     short.to_owned()
 }
 
-const CACHE_ENABLED: bool = false;
+const CACHE_ENABLED: bool = true;
 
 pub fn get_file(url: &str) -> Result<String> {
     if CACHE_ENABLED {
