@@ -1,13 +1,8 @@
-use std::collections::HashMap;
-
-use crate::{
-    text_parser::Context,
-    utils::{get_img_link, get_img_link_map, get_or_join},
-};
+use crate::{text_parser::Context, utils::get_img_link_map};
 
 use super::{
+    filter_names,
     text_element::{Header, TextCompound},
-    website_data_counter::{self, filter_names},
     HTMLNode,
 };
 
@@ -23,7 +18,7 @@ impl TextCompound {
         inner(node, &mut s);
         s
     }
-    pub fn from_html_node_array(ctx: &Context, node: &[HTMLNode]) -> Option<Self> {
+    pub fn from_html_node_array(ctx: &mut Context, node: &[HTMLNode]) -> Option<Self> {
         let mut nodes: Vec<Self> = node
             .iter()
             .flat_map(|x| Self::from_html_node(ctx, x))
@@ -36,12 +31,29 @@ impl TextCompound {
             Some(Self::Array(nodes))
         }
     }
-    pub fn from_html_node(ctx: &Context, node: &HTMLNode) -> Option<Self> {
+    pub fn from_html_node(ctx: &mut Context, node: &HTMLNode) -> Option<Self> {
         match node {
             HTMLNode::Node(a, b, c) => match filter_names(a.as_str()) {
                 "div" | "section" | "main" | "article" | "html" | "body" => {
                     Self::from_html_node_array(ctx, c)
                 }
+                "table" => Some(Self::Table(
+                    node.select(&["tr"])
+                        .iter()
+                        .map(|x| {
+                            x.select(&["td", "th"])
+                                .iter()
+                                .map(|x| {
+                                    Some((
+                                        x.get_tag_name() == Some("th"),
+                                        Self::from_html_node_array(ctx, x.get_node().unwrap())?,
+                                    ))
+                                })
+                                .flatten()
+                                .collect()
+                        })
+                        .collect(),
+                )),
                 "p" | "time" => Some(TextCompound::P(box Self::from_html_node_array(ctx, c)?)),
                 "a" => Some(TextCompound::Link(
                     box Self::from_html_node_array(ctx, c)?,
@@ -76,22 +88,37 @@ impl TextCompound {
                     get_img_link_map(ctx, b).map(|x| x.into_owned())?,
                 )),
                 "h1" => Some(TextCompound::H(
+                    b.get("id")
+                        .map(|x| x.split(" ").map(|x| x.to_owned()).collect())
+                        .unwrap_or_default(),
                     Header::H1,
                     box Self::from_html_node_array(ctx, c)?,
                 )),
                 "h2" => Some(TextCompound::H(
+                    b.get("id")
+                        .map(|x| x.split(" ").map(|x| x.to_owned()).collect())
+                        .unwrap_or_default(),
                     Header::H2,
                     box Self::from_html_node_array(ctx, c)?,
                 )),
                 "h3" => Some(TextCompound::H(
+                    b.get("id")
+                        .map(|x| x.split(" ").map(|x| x.to_owned()).collect())
+                        .unwrap_or_default(),
                     Header::H3,
                     box Self::from_html_node_array(ctx, c)?,
                 )),
                 "h4" => Some(TextCompound::H(
+                    b.get("id")
+                        .map(|x| x.split(" ").map(|x| x.to_owned()).collect())
+                        .unwrap_or_default(),
                     Header::H4,
                     box Self::from_html_node_array(ctx, c)?,
                 )),
                 "h5" => Some(TextCompound::H(
+                    b.get("id")
+                        .map(|x| x.split(" ").map(|x| x.to_owned()).collect())
+                        .unwrap_or_default(),
                     Header::H5,
                     box Self::from_html_node_array(ctx, c)?,
                 )),

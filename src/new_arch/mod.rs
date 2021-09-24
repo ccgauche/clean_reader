@@ -2,19 +2,42 @@ use std::{borrow::Borrow, collections::HashMap, fmt::Display};
 
 use kuchiki::NodeRef;
 
-use crate::{
-    new_arch::{score::best_node, website_data_counter::filter_names},
-    utils::gen_html_2,
-};
+use crate::{new_arch::score::best_node, utils::gen_html_2};
 
 mod score;
 pub mod text_element;
 mod text_parser;
-mod website_data_counter;
 
 pub enum HTMLNode {
     Node(String, HashMap<String, String>, Vec<HTMLNode>),
     Text(String),
+}
+
+impl HTMLNode {
+    pub fn get_node(&self) -> Option<&Vec<HTMLNode>> {
+        match self {
+            HTMLNode::Node(_, _, a) => Some(a),
+            HTMLNode::Text(_) => None,
+        }
+    }
+    pub fn get_tag_name(&self) -> Option<&str> {
+        match self {
+            HTMLNode::Node(a, _, _) => Some(a),
+            HTMLNode::Text(_) => None,
+        }
+    }
+    pub fn select(&self, tag_names: &[&str]) -> Vec<&Self> {
+        match self {
+            Self::Node(a, _, b) => {
+                if tag_names.contains(&a.as_str()) {
+                    vec![self]
+                } else {
+                    b.iter().map(|x| x.select(tag_names)).flatten().collect()
+                }
+            }
+            Self::Text(_a) => Vec::new(),
+        }
+    }
 }
 
 impl Display for HTMLNode {
@@ -50,44 +73,13 @@ const ALLOW_OVERIDE: &[&str] = &[
 
 const ALLOWED_ALONE: &[&str] = &["br", "hr", "img"];
 
-const IDS: &[&str] = &[
-    // "capping",
-    // "comment",
-    // "related",
-    // "aside",
-    // "advert",
-    // "inread",
-    // "carousel",
-    // "video",
-    // "newsletter",
-    // "widget",
-    // "tools",
-    // "login",
-    // "signin",
-    // "signout",
-    // "sign-in",
-    // "sign-out",
-    // "subscribe",
-    // "register",
-    // "service",
-    // "share",
-    // "navbar",
-];
-
-const ID: &[&str] = &[/* "ads", "ad", "pub", "nav" */];
-
-fn check_attribute(
-    plurial: &[&str],
-    single: &[&str],
-    attribute: &str,
-    attrs: &HashMap<String, String>,
-) -> bool {
-    if let Some(e) = attrs.get(attribute) {
-        !(e.split(" ")
-            .any(|x| single.contains(&x.to_lowercase().as_str()))
-            || plurial.iter().any(|x| e.to_lowercase().contains(x)))
+pub fn filter_names(string: &str) -> &str {
+    if string.contains("img") {
+        "img"
+    } else if string.contains("source") {
+        "source"
     } else {
-        true
+        string
     }
 }
 
@@ -114,10 +106,6 @@ impl HTMLNode {
         {
             let name = filter_names(&name);
             if SKIP_ELEMENTS.contains(&name) {
-                return None;
-            }
-            if !check_attribute(IDS, ID, "id", &attrs) || !check_attribute(IDS, ID, "class", &attrs)
-            {
                 return None;
             }
             let mut childrens = noderef
@@ -158,13 +146,13 @@ pub fn run_v2(url: &str) -> anyhow::Result<String> {
     let h = crate::title_extractor::try_extract_data(&document);
     let html = HTMLNode::from_node_ref(document)
         .ok_or_else(|| anyhow::anyhow!("Invalid HTMLNode ref generation"))?;
-    let ctx = crate::text_parser::Context {
+    let mut ctx = crate::text_parser::Context {
         meta: h,
         url: reqwest::Url::parse(url).expect("Invalid URL"),
+        map: HashMap::new(),
+        count: 0,
     };
-    //println!("{}", html);
-    let text = text_element::TextCompound::from_html_node(&ctx, best_node(&html))
+    let text = text_element::TextCompound::from_html_node(&mut ctx, best_node(&html))
         .ok_or_else(|| anyhow::anyhow!("Invalid HTML generation"))?;
-    //println!("{}", text_element::Compilable::html(&text).unwrap());
     Ok(gen_html_2(&[text], &ctx))
 }

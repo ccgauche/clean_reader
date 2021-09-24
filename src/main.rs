@@ -4,8 +4,6 @@ use anyhow::*;
 
 mod cache;
 mod new_arch;
-mod structures;
-mod synthax;
 mod text_parser;
 mod title_extractor;
 mod utils;

@@ -1,17 +1,12 @@
 use std::{fs::OpenOptions, io::Write};
 
-use crate::{new_arch::run_v2, text_parser::Context};
+use crate::new_arch::run_v2;
 use anyhow::*;
 use dashmap::DashMap;
-use kuchiki::traits::TendrilSink;
-use once_cell::sync::Lazy;
-use reqwest::Url;
 
-use crate::{
-    text_parser,
-    title_extractor::try_extract_data,
-    utils::{gen_html, http_get, remove, sha256},
-};
+use once_cell::sync::Lazy;
+
+use crate::utils::sha256;
 
 static URLS: Lazy<DashMap<String, String>> = Lazy::new(|| {
     if let Ok(e) = std::fs::read_to_string("db.json") {
@@ -63,40 +58,4 @@ pub fn get_file(url: &str) -> Result<String> {
     } else {
         run_v2(url)
     }
-}
-
-fn get_html(url: &str) -> Result<String> {
-    let document = kuchiki::parse_html().one(http_get(url)?);
-    [
-        ".capping",
-        "script",
-        "style",
-        ".comment-list",
-        ".comment",
-        ".comments",
-        ".related-story",
-        ".article__aside",
-        ".sgt-inread",
-        ".abo-inread",
-        "#placeholder--inread",
-        "div.rebond",
-        ".ads",
-        ".ad",
-        ".advertisement",
-        ".pub",
-        "aside",
-        "#comments",
-        "#comment",
-    ]
-    .iter()
-    .for_each(|x| remove(&document, x));
-    let h = try_extract_data(&document);
-    let ctx = Context {
-        meta: h,
-        url: Url::parse(url)?,
-    };
-    Ok(gen_html(
-        &text_parser::clean_html(document.select_first("body").unwrap().as_node(), &ctx),
-        &ctx,
-    ))
 }
