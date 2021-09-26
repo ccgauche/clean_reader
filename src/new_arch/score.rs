@@ -1,4 +1,4 @@
-use super::HTMLNode;
+use super::html_node::HTMLNode;
 
 const ELEMENTS: &[(&[&str], f32)] = &[
     (
@@ -12,6 +12,8 @@ const ELEMENTS: &[(&[&str], f32)] = &[
 const TEXT_SCORE: f32 = 30.;
 const MAX_THRESHOLD: f32 = 5000.;
 
+/// This recursive function finds the best node in the tree (The one which is the likeliest to contains interesting content)
+// TODO(performance high): Propagate score evalutation
 pub fn best_node(nodes: &HTMLNode) -> &HTMLNode {
     let mut score = nodes.score();
     let mut node = nodes;
@@ -32,6 +34,9 @@ pub fn best_node(nodes: &HTMLNode) -> &HTMLNode {
 }
 
 impl HTMLNode {
+    /*
+    TODO(performance high): Propagate score evalutation or add some cache
+     */
     fn score(&self) -> f32 {
         match self {
             HTMLNode::Node(a, _, c) => {

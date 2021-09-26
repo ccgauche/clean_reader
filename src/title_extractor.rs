@@ -18,11 +18,13 @@ pub fn try_extract_data(node: &NodeRef) -> ArticleData {
         for title in TITLE_PROPERTIES {
             if p.title.is_none() && prop == *title {
                 p.title = attrs.get("content").map(|x| x.to_string());
+                break;
             }
         }
         for image in IMAGE_PROPERTIES {
             if p.image.is_none() && prop == *image {
                 p.image = attrs.get("content").map(|x| x.to_string());
+                break;
             }
         }
     }
