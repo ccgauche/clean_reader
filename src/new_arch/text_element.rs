@@ -104,7 +104,10 @@ impl<'a> TextCompound<'a> {
             TextCompound::Link(a, b) => {
                 let a = a.html(ctx)?;
                 Cow::Owned(
-                    if !b.starts_with('#') && is_text(b.as_ref()) && !a.contains("Official website")
+                    if !ctx.download
+                        && (b.starts_with('#')
+                            && is_text(b.as_ref())
+                            && !a.contains("Official website"))
                     {
                         format!("<a href=\"/m/{}\">{}</a>", get_shortened_from_url(b), a)
                     } else {

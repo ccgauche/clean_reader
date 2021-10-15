@@ -75,10 +75,19 @@ pub fn gen_html_2(parts: &[text_element::TextCompound], ctx: &Context) -> String
             .replace("%%start:code%%", "")
             .replace("%%end%%", "")
             .replace("%%CODE%%", k)
+            .replace("%%DOWNLOAD%%", &if ctx.download {
+                String::new()
+            } else {
+                format!("<quote><a href=\"/d/{}\" download=\"article.html\">Download this article</a></quote>",&ctx.min_id)})
     } else {
         use regex::Regex;
         let re = Regex::new(r"%%start:code%%[^%]+%%end%%").unwrap();
-        re.replace_all(TEMPLATE, "").replace("%%CODE%%", k)
+        re.replace_all(TEMPLATE, "")
+            .replace("%%CODE%%", k)
+            .replace("%%DOWNLOAD%%", &if ctx.download {
+                String::new()
+            } else {
+                format!("<quote><a href=\"/d/{}\" download=\"article.html\">Download this article</a></quote>",&ctx.min_id)})
     }
 }
 

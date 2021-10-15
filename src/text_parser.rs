@@ -45,6 +45,8 @@ The context of the parser (The current url for link absolutization and the artic
 */
 pub struct Context<'a> {
     pub url: Url,
+    pub download: bool,
+    pub min_id: String,
     pub map: HashMap<&'a str, usize>,
     pub count: usize,
     pub meta: ArticleData,

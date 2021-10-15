@@ -57,17 +57,23 @@ impl<'a> TextCompound<'a> {
                         .collect(),
                 )),
                 "p" | "time" => Some(TextCompound::P(box Self::from_html_node_array(ctx, c)?)),
-                "a" => Some(TextCompound::Link(
-                    box Self::from_html_node_array(ctx, c)?,
-                    b.get("href")
-                        .map(|x| ctx.absolutize(x))
-                        .unwrap_or_else(|| Cow::Borrowed("")),
-                )),
+                "a" => {
+                    let html = Self::from_html_node_array(ctx, c)?;
+                    let k = b
+                        .get("href")
+                        .filter(|x| !x.starts_with("#"))
+                        .map(|x| ctx.absolutize(x));
+                    if let Some(a) = k {
+                        Some(TextCompound::Link(box html, a))
+                    } else {
+                        Some(html)
+                    }
+                }
                 "i" | "em" => Some(TextCompound::Italic(box Self::from_html_node_array(
                     ctx, c,
                 )?)),
                 "b" | "strong" => Some(TextCompound::Bold(box Self::from_html_node_array(ctx, c)?)),
-                "br" | "wbr" => Some(TextCompound::Br),
+                "br" | "wbr" | "hr" => Some(TextCompound::Br),
                 "small" => Some(TextCompound::Small(box Self::from_html_node_array(ctx, c)?)),
                 "span" | "q" => Some(Self::from_html_node_array(ctx, c)?),
                 "abbr" => Some(TextCompound::Abbr(

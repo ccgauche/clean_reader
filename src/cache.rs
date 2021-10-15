@@ -45,17 +45,17 @@ pub fn get_shortened_from_url(url: &str) -> String {
 
 const CACHE_ENABLED: bool = false;
 
-pub fn get_file(url: &str) -> Result<String> {
+pub fn get_file(url: &str, min_id: &str, download: bool) -> Result<String> {
     if CACHE_ENABLED {
         let cache_file = format!("cache/{}.html", sha256(url));
         Ok(if let Ok(e) = std::fs::read_to_string(&cache_file) {
             e
         } else {
-            let html = run_v2(url)?;
+            let html = run_v2(url, min_id, download)?;
             std::fs::write(cache_file, &html)?;
             html
         })
     } else {
-        run_v2(url)
+        run_v2(url, min_id, download)
     }
 }

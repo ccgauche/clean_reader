@@ -33,7 +33,7 @@ async fn index_m(web::Path(short): web::Path<String>) -> HttpResponse {
         let url =
             get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;
         println!("{}", url);
-        get_file(&url)?
+        get_file(&url, &short, false)?
     };
     match output {
         Ok(e) => HttpResponse::Ok().content_type("text/html").body(e),
@@ -41,11 +41,18 @@ async fn index_m(web::Path(short): web::Path<String>) -> HttpResponse {
     }
 }
 
-#[get("/dist/index.css")]
-async fn index_css() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/css")
-        .body(include_str!("../dist/index.css"))
+#[get("/d/{short}")]
+async fn download(web::Path(short): web::Path<String>) -> HttpResponse {
+    let output: Result<String> = try {
+        let url =
+            get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;
+        println!("{}", url);
+        get_file(&url, &short, true)?
+    };
+    match output {
+        Ok(e) => HttpResponse::Ok().content_type("text/html").body(e),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
 }
 
 #[actix_web::main]
@@ -54,7 +61,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(index_r)
             .service(index_m)
-            .service(index_css)
+            .service(download)
     })
     .bind("127.0.0.1:8080")?
     .run()

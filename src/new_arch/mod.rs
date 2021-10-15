@@ -20,7 +20,7 @@ pub fn filter_names(string: &str) -> &str {
     }
 }
 
-pub fn run_v2(url: &str) -> anyhow::Result<String> {
+pub fn run_v2(url: &str, min_id: &str, download: bool) -> anyhow::Result<String> {
     use kuchiki::traits::TendrilSink;
     let document = kuchiki::parse_html().one(crate::utils::http_get(url)?);
     let h = crate::title_extractor::try_extract_data(&document);
@@ -28,6 +28,8 @@ pub fn run_v2(url: &str) -> anyhow::Result<String> {
         .ok_or_else(|| anyhow::anyhow!("Invalid HTMLNode ref generation"))?;
     let mut ctx = crate::text_parser::Context {
         meta: h,
+        download,
+        min_id: min_id.to_string(),
         url: reqwest::Url::parse(url).expect("Invalid URL"),
         map: HashMap::new(),
         count: 0,
