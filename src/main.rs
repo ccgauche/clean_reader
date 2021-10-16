@@ -3,6 +3,7 @@
 use anyhow::*;
 
 mod cache;
+mod config;
 mod new_arch;
 mod text_parser;
 mod title_extractor;

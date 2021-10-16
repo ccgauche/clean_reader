@@ -1,6 +1,6 @@
 use std::{fs::OpenOptions, io::Write};
 
-use crate::new_arch::run_v2;
+use crate::{config::CONFIG, new_arch::run_v2};
 use anyhow::*;
 use dashmap::DashMap;
 
@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use crate::utils::sha256;
 
 static URLS: Lazy<DashMap<String, String>> = Lazy::new(|| {
-    if let Ok(e) = std::fs::read_to_string("template/db.json") {
+    if let Ok(e) = std::fs::read_to_string(&CONFIG.database_file) {
         e.lines()
             .filter(|x| x.contains('|'))
             .map(|x| {
@@ -35,7 +35,7 @@ pub fn get_shortened_from_url(url: &str) -> String {
             .append(true)
             .create(true)
             .write(true)
-            .open("template/db.json")
+            .open(&CONFIG.database_file)
             .unwrap()
             .write_all(format!("{}|{}\n", short, url).as_bytes())
             .unwrap();
@@ -47,7 +47,7 @@ const CACHE_ENABLED: bool = false;
 
 pub fn get_file(url: &str, min_id: &str, download: bool) -> Result<String> {
     if CACHE_ENABLED {
-        let cache_file = format!("cache/{}.html", sha256(url));
+        let cache_file = format!("{}/{}.html", CONFIG.cache_folder, sha256(url));
         Ok(if let Ok(e) = std::fs::read_to_string(&cache_file) {
             e
         } else {

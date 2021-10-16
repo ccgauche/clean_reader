@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    config::CONFIG,
     new_arch::{html_node::HTMLNode, score::best_node},
     utils::gen_html_2,
 };
@@ -41,6 +42,6 @@ pub fn run_v2(url: &str, min_id: &str, download: bool) -> anyhow::Result<String>
     } else {
         text
     };
-    std::fs::write("target/debug.text_element", text.to_string()).unwrap();
+    std::fs::write(&CONFIG.text_element_debug_file, text.to_string()).unwrap();
     Ok(gen_html_2(&[text], &ctx))
 }

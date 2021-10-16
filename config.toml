@@ -1,0 +1,5 @@
+enable_debug_text_element = false
+enable_cache = true
+cache_folder = "cache"
+text_element_debug_file = "target/text_element.txt"
+database_file = "template/db.json"
