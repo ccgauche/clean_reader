@@ -1,6 +1,6 @@
 use std::{fs::OpenOptions, io::Write};
 
-use crate::{config::CONFIG, new_arch::run_v2};
+use crate::{config::CONFIG, run_v2};
 use anyhow::*;
 use dashmap::DashMap;
 

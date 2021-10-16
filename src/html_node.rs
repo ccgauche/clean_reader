@@ -2,7 +2,7 @@ use std::{borrow::Borrow, collections::HashMap, fmt::Display};
 
 use kuchiki::NodeRef;
 
-use crate::new_arch::filter_names;
+use crate::utils::filter_names;
 
 const SKIP_ELEMENTS: &[&str] = &[
     "button", "input", "form", "nav", "footer", "header", "script", "link", "noscript", "aside",

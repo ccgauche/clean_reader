@@ -1,25 +1,14 @@
 use std::borrow::Cow;
 
-use crate::{text_parser::Context, utils::get_img_link_map};
-
-use super::{
-    filter_names,
+use crate::{
     html_node::HTMLNode,
-    text_element::{Header, TextCompound},
+    text_parser::Context,
+    utils::{filter_names, get_img_link_map},
 };
 
+use super::{Header, TextCompound};
+
 impl<'a> TextCompound<'a> {
-    pub fn get_text(node: &HTMLNode) -> String {
-        fn inner(node: &HTMLNode, string: &mut String) {
-            match node {
-                HTMLNode::Node(_, _, c) => c.iter().for_each(|x| inner(x, string)),
-                HTMLNode::Text(a) => string.push_str(a),
-            }
-        }
-        let mut s = String::new();
-        inner(node, &mut s);
-        s
-    }
     pub fn from_html_node_array(ctx: &mut Context<'a>, node: &'a [HTMLNode]) -> Option<Self> {
         let mut nodes: Vec<Self> = node
             .iter()
@@ -98,7 +87,7 @@ impl<'a> TextCompound<'a> {
                 "sub" => Some(TextCompound::Sub(box Self::from_html_node_array(ctx, c)?)),
                 "sup" => Some(TextCompound::Sup(box Self::from_html_node_array(ctx, c)?)),
                 "img" => Some(TextCompound::Img(get_img_link_map(ctx, b)?)),
-                // TODO(code style): Transform all of this into one statement
+                // TODO(code style): Transform all of this in one statement
                 "h1" => Some(TextCompound::H(
                     b.get("id")
                         .map(|x| x.split(' ').map(Cow::Borrowed).collect())

@@ -4,7 +4,20 @@ use reqwest::Url;
 
 use anyhow::*;
 
-use crate::{new_arch::text_element, text_parser::Context};
+use crate::{
+    text_element::{Header, TextCompound},
+    text_parser::Context,
+};
+
+pub fn filter_names(string: &str) -> &str {
+    if string.contains("img") {
+        "img"
+    } else if string.contains("source") {
+        "source"
+    } else {
+        string
+    }
+}
 
 // TODO (code style): Use a const containing all image types.
 pub fn get_img_link_map<'a>(
@@ -38,18 +51,16 @@ pub fn get_img_link_map<'a>(
 
 const TEMPLATE: &str = include_str!("../template/template.html");
 
-pub fn gen_html_2(parts: &[text_element::TextCompound], ctx: &Context) -> String {
+pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
     let k = &[
-        text_element::TextCompound::Quote(box text_element::TextCompound::Link(
-            Box::new(text_element::TextCompound::Raw(Cow::Borrowed(
-                "Official website",
-            ))),
+        TextCompound::Quote(box TextCompound::Link(
+            Box::new(TextCompound::Raw(Cow::Borrowed("Official website"))),
             Cow::Borrowed(ctx.url.as_str()),
         )),
-        text_element::TextCompound::H(
+        TextCompound::H(
             vec![Cow::Borrowed("main-title")],
-            text_element::Header::H1,
-            box text_element::TextCompound::Raw(
+            Header::H1,
+            box TextCompound::Raw(
                 ctx.meta
                     .title
                     .as_ref()
@@ -57,7 +68,7 @@ pub fn gen_html_2(parts: &[text_element::TextCompound], ctx: &Context) -> String
                     .unwrap_or_else(|| Cow::Borrowed("")),
             ),
         ),
-        text_element::TextCompound::Img(
+        TextCompound::Img(
             ctx.meta
                 .image
                 .as_ref()

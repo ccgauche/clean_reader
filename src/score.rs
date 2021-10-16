@@ -1,4 +1,4 @@
-use super::html_node::HTMLNode;
+use crate::html_node::HTMLNode;
 
 const ELEMENTS: &[(&[&str], f32)] = &[
     (
