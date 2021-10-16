@@ -7,6 +7,7 @@ pub struct Config {
     pub cache_folder: String,
     pub database_file: String,
     pub text_element_debug_file: String,
+    pub address: String,
 }
 
 pub static CONFIG: Lazy<Config> =

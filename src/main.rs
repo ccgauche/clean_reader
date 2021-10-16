@@ -12,7 +12,7 @@ mod utils;
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 use cache::{get_file, get_shortened_from_url};
 
-use crate::cache::get_url_for_shortened;
+use crate::{cache::get_url_for_shortened, config::CONFIG};
 
 #[get("/r/{base64url}")]
 async fn index_r(web::Path(base64url): web::Path<String>) -> HttpResponse {
@@ -64,7 +64,7 @@ async fn main() -> std::io::Result<()> {
             .service(index_m)
             .service(download)
     })
-    .bind("127.0.0.1:8080")?
+    .bind(&CONFIG.address)?
     .run()
     .await
 }
