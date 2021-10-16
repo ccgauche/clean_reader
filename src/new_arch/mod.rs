@@ -36,5 +36,11 @@ pub fn run_v2(url: &str, min_id: &str, download: bool) -> anyhow::Result<String>
     };
     let text = text_element::TextCompound::from_html_node(&mut ctx, best_node(&html))
         .ok_or_else(|| anyhow::anyhow!("Invalid HTML generation"))?;
+    let text = if ctx.meta.title.is_some() {
+        text.remove_title()
+    } else {
+        text
+    };
+    std::fs::write("target/debug.text_element", text.to_string()).unwrap();
     Ok(gen_html_2(&[text], &ctx))
 }

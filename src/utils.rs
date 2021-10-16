@@ -36,7 +36,7 @@ pub fn get_img_link_map<'a>(
     None
 }
 
-const TEMPLATE: &str = include_str!("../template.html");
+const TEMPLATE: &str = include_str!("../template/template.html");
 
 pub fn gen_html_2(parts: &[text_element::TextCompound], ctx: &Context) -> String {
     let k = &[

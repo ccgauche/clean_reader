@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use crate::utils::sha256;
 
 static URLS: Lazy<DashMap<String, String>> = Lazy::new(|| {
-    if let Ok(e) = std::fs::read_to_string("db.json") {
+    if let Ok(e) = std::fs::read_to_string("template/db.json") {
         e.lines()
             .filter(|x| x.contains('|'))
             .map(|x| {
@@ -35,7 +35,7 @@ pub fn get_shortened_from_url(url: &str) -> String {
             .append(true)
             .create(true)
             .write(true)
-            .open("db.json")
+            .open("template/db.json")
             .unwrap()
             .write_all(format!("{}|{}\n", short, url).as_bytes())
             .unwrap();

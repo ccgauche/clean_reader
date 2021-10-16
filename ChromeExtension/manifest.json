@@ -4,7 +4,7 @@
   "icons": {
     "88": "icons.png"
   },
-  "description": "Clean Reader by ccgauche | Un clean reader qui optimise et rend plus propre votre connexion",
+  "description": "Clean Reader by ccgauche | Clean reader make for a clean, simpler, greener web.",
   "permissions": ["<all_urls>", "contextMenus"],
   "background": {
     "scripts": ["background.js"]
@@ -12,8 +12,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["jquery.js", "cr.js"],
-      "css": ["cr.css"]
+      "js": ["cr.js"]
     }
   ],
   "manifest_version": 2

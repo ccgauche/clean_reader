@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body,
+      html {
+        margin: 0;
+        color: #fff;
+        background-color: #222;
+        font-family: Arial, sans-serif;
+      }
+      .container {
+        max-width: 30rem;
+        margin: auto;
+      }
+      a {
+        color: #3498db;
+      }
+      quote {
+        border-left: 4px solid #aaa;
+        display: block;
+        padding: 0.5rem 0;
+        margin: 0.5rem 0;
+        padding-left: 1rem;
+        color: #ababab;
+      }
+      img {
+        display: block;
+        max-width: 30rem;
+      }
+      table {
+        border: 1px solid #fff;
+        border-collapse: collapse;
+        overflow-x: auto;
+        max-width: 100%;
+        width: max-content;
+        display: block;
+      }
+      table td,
+      table th {
+        border: 1px solid #fff;
+        padding: 6px 13px;
+      }
+      table tr:nth-child(2n + 1) {
+        background-color: #fff1;
+      }
+    </style>
+    %%start:code%%
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.2.0/styles/atom-one-dark.min.css"
+    />
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.2.0/highlight.min.js"></script>
+    %%end%%
+  </head>
+
+  <body>
+    <div class="container" id="ctn">%%CODE%%%%DOWNLOAD%%</div>
+    %%start:code%%
+    <script>
+      let i = () => {
+        let k = document.getElementById("ctn");
+        if (k.classList.contains("invert")) {
+          k.classList.remove("invert");
+        } else {
+          k.classList.add("invert");
+        }
+      };
+      hljs.highlightAll();
+    </script>
+    %%end%%
+  </body>
+</html>

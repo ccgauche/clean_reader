@@ -61,7 +61,7 @@ impl<'a> TextCompound<'a> {
                     let html = Self::from_html_node_array(ctx, c)?;
                     let k = b
                         .get("href")
-                        .filter(|x| !x.starts_with("#"))
+                        //.filter(|x| !x.starts_with("#"))
                         .map(|x| ctx.absolutize(x));
                     if let Some(a) = k {
                         Some(TextCompound::Link(box html, a))

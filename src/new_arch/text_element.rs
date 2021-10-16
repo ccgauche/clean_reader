@@ -1,4 +1,7 @@
-use std::borrow::{Borrow, Cow};
+use std::{
+    borrow::{Borrow, Cow},
+    fmt::Display,
+};
 
 use crate::{cache::get_shortened_from_url, text_parser::Context, utils::is_text};
 
@@ -22,9 +25,84 @@ pub enum TextCompound<'a> {
     Ul(Vec<TextCompound<'a>>),
     Table(Vec<Vec<(bool, TextCompound<'a>)>>),
 }
+impl Display for TextCompound<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TextCompound::Raw(a) => write!(f, "Raw({})", a),
+            TextCompound::Link(a, b) => write!(f, "Raw({},{})", a, b),
+            TextCompound::Italic(a) => write!(f, "Italic({})", a),
+            TextCompound::Bold(a) => write!(f, "Bold({})", a),
+            TextCompound::Array(a) => write!(
+                f,
+                "{}",
+                a.iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join("+")
+            ),
+            TextCompound::Abbr(a, b) => write!(f, "Abbr({},{})", a.to_string(), b),
+            TextCompound::Sup(a) => write!(f, "Sup({})", a),
+            TextCompound::Sub(a) => write!(f, "Sub({})", a),
+            TextCompound::Small(a) => write!(f, "Small({})", a),
+            TextCompound::Code(a) => write!(f, "Code({})", a),
+            TextCompound::Img(a) => write!(f, "Img({})", a),
+            TextCompound::Br => write!(f, "Br()"),
+            TextCompound::H(a, b, c) => write!(
+                f,
+                "H{}([{}],{})",
+                match b {
+                    Header::H1 => "1",
+                    Header::H2 => "2",
+                    Header::H3 => "3",
+                    Header::H4 => "4",
+                    Header::H5 => "5",
+                },
+                a.iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+                c
+            ),
+            TextCompound::P(a) => write!(f, "P({})", a),
+            TextCompound::Quote(a) => write!(f, "Quote({})", a),
+            TextCompound::Ul(a) => write!(
+                f,
+                "Ul({})",
+                a.iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+            TextCompound::Table(a) => write!(
+                f,
+                "Table([{}])",
+                a.iter()
+                    .map(|x| x
+                        .iter()
+                        .map(|x| x.1.to_string())
+                        .collect::<Vec<_>>()
+                        .join(","))
+                    .collect::<Vec<_>>()
+                    .join("],[")
+            ),
+        }
+    }
+}
 impl<'a> TextCompound<'a> {
+    pub fn remove_title(self) -> Self {
+        match self {
+            Self::Array(mut e) => {
+                if matches!(e.get(0), Some(Self::H(_, Header::H1, _))) {
+                    e.remove(0);
+                }
+                Self::Array(e)
+            }
+            e => e,
+        }
+    }
+
     #[allow(unused)]
-    fn markdown(&'a self) -> Option<Cow<'a, str>> {
+    pub fn markdown(&'a self) -> Option<Cow<'a, str>> {
         let k = match self {
             TextCompound::Raw(a) => Cow::Borrowed(a.borrow()),
             TextCompound::Link(a, b) => Cow::Owned(format!("[{}]({})", a.markdown()?, b)),
