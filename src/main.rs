@@ -35,7 +35,7 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
         map: HashMap::new(),
         count: 0,
     };
-    let text = TextCompound::from_html_node(&mut ctx, best_node(&html))
+    let text = TextCompound::from_node(&mut ctx, best_node(&html))
         .ok_or_else(|| anyhow::anyhow!("Invalid HTML generation"))?;
     let text = if ctx.meta.title.is_some() {
         text.remove_title()
