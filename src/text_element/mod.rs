@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, str::FromStr};
 
 use crate::html_node::HTMLNode;
 
@@ -13,6 +13,21 @@ pub enum Header {
     H3,
     H4,
     H5,
+}
+
+impl FromStr for Header {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "h1" => Self::H1,
+            "h2" => Self::H2,
+            "h3" => Self::H3,
+            "h4" => Self::H4,
+            "h5" => Self::H5,
+            _ => return Err("Invalid header"),
+        })
+    }
 }
 
 #[derive(Debug)]

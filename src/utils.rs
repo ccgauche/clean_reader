@@ -19,22 +19,16 @@ pub fn filter_names(string: &str) -> &str {
     }
 }
 
-// TODO (code style): Use a const containing all image types.
+const IMAGE_EXTENSIONS: &[&str] = &[
+    ".jpg", ".jpeg", ".webm", ".tiff", ".png", ".bmp", ".gif", ".svg",
+];
 pub fn get_img_link_map<'a>(
     url: &Context,
     attrs: &'a HashMap<String, String>,
 ) -> Option<Cow<'a, str>> {
     for (a, value) in attrs {
         if !matches!(a.as_str(), "alt" | "class" | "size" | "width" | "height")
-            && (value.contains('/')
-                || value.ends_with(".jpg")
-                || value.ends_with(".jpeg")
-                || value.ends_with(".webm")
-                || value.ends_with(".tiff")
-                || value.ends_with(".png")
-                || value.ends_with(".bmp")
-                || value.ends_with(".gif")
-                || value.ends_with(".svg"))
+            && (value.contains('/') || IMAGE_EXTENSIONS.iter().any(|x| value.ends_with(x)))
         {
             if let Some(e) = get_or_join(&url.url, value) {
                 if let Some(k) = &url.meta.image {
