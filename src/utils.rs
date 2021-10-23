@@ -9,14 +9,13 @@ use crate::{
     text_parser::Context,
 };
 
+const NAMES_TO_FILTER: &[&str] = &["img", "source"];
+
 pub fn filter_names(string: &str) -> &str {
-    if string.contains("img") {
-        "img"
-    } else if string.contains("source") {
-        "source"
-    } else {
-        string
-    }
+    *NAMES_TO_FILTER
+        .iter()
+        .find(|x| string.contains(*x))
+        .unwrap_or_else(|| &string)
 }
 
 const IMAGE_EXTENSIONS: &[&str] = &[
@@ -31,12 +30,17 @@ pub fn get_img_link_map<'a>(
             && (value.contains('/') || IMAGE_EXTENSIONS.iter().any(|x| value.ends_with(x)))
         {
             if let Some(e) = get_or_join(&url.url, value) {
-                if let Some(k) = &url.meta.image {
-                    if k == e.as_ref() {
-                        return None;
-                    }
-                }
-                return Some(e);
+                return if url
+                    .meta
+                    .image
+                    .as_ref()
+                    .map(|x| x == e.as_ref())
+                    .unwrap_or(false)
+                {
+                    None
+                } else {
+                    Some(e)
+                };
             }
         }
     }
@@ -96,23 +100,19 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
     }
 }
 
+fn before(string: &str, c: char) -> &str {
+    &string[..string.find(c).unwrap_or_else(|| string.len())]
+}
+
 pub fn get_or_join<'a>(url: &Url, string: &'a str) -> Option<Cow<'a, str>> {
     let string = if string.contains(' ') {
-        string
-            .split(',')
-            .next()
-            .unwrap()
-            .trim()
-            .split(' ')
-            .next()
-            .unwrap()
+        before(before(string, ',').trim(), ' ')
     } else {
         string
     };
     if string.starts_with("data") {
-        return None;
-    }
-    if string.starts_with("http") {
+        None
+    } else if string.starts_with("http") {
         Some(Cow::Borrowed(string))
     } else {
         Some(Cow::Owned(url.join(string).ok()?.to_string()))
@@ -135,13 +135,8 @@ const ORHER_THAN_HTML: &[&str] = &[
     ".woff2",
 ];
 
-pub fn is_text(url: &str) -> bool {
-    for i in ORHER_THAN_HTML {
-        if url.ends_with(i) {
-            return false;
-        }
-    }
-    true
+pub fn is_html(url: &str) -> bool {
+    !ORHER_THAN_HTML.iter().any(|x| url.ends_with(x))
 }
 
 pub fn sha256(data: &str) -> String {

@@ -4,7 +4,7 @@ use crate::{
     cache::get_shortened_from_url,
     text_element::{Header, TextCompound},
     text_parser::Context,
-    utils::is_text,
+    utils::is_html,
 };
 
 impl<'a> TextCompound<'a> {
@@ -15,9 +15,9 @@ impl<'a> TextCompound<'a> {
                 let a = a.html(ctx)?;
                 Cow::Owned(
                     if !ctx.download
-                        && (b.starts_with('#')
-                            && is_text(b.as_ref())
-                            && !a.contains("Official website"))
+                        && !b.starts_with('#')
+                        && is_html(b.as_ref())
+                        && !a.contains("Official website")
                     {
                         format!("<a href=\"/m/{}\">{}</a>", get_shortened_from_url(b), a)
                     } else {

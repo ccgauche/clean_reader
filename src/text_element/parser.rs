@@ -79,7 +79,7 @@ impl<'a> TextCompound<'a> {
                         b.get("id")
                             .map(|x| x.split(' ').map(Cow::Borrowed).collect())
                             .unwrap_or_default(),
-                        name[1..].parse().unwrap(),
+                        name.parse().unwrap(),
                         box Self::from_array(ctx, c)?,
                     )),
                     "figure" | "figcaption" => {
