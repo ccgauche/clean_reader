@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use anyhow::*;
 
+mod bench;
 mod cache;
 mod config;
 mod html_node;
@@ -17,17 +18,23 @@ use actix_web::{get, web, App, HttpResponse, HttpServer};
 use cache::{get_file, get_shortened_from_url};
 
 use crate::{
-    cache::get_url_for_shortened, config::CONFIG, html_node::HTMLNode, score::best_node,
-    text_element::TextCompound, utils::gen_html_2,
+    bench::Monitor, cache::get_url_for_shortened, config::CONFIG, html_node::HTMLNode,
+    score::best_node, text_element::TextCompound, utils::gen_html_2,
 };
 
 pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<String> {
     use kuchiki::traits::TendrilSink;
-    let document = kuchiki::parse_html().one(crate::utils::http_get(url)?);
+    let mut bench = Monitor::new();
+    let document =
+        kuchiki::parse_html().one(bench.add_fn("http get", || crate::utils::http_get(url))?);
+    bench.add("http parse");
     let h = crate::title_extractor::try_extract_data(&document);
+    bench.add("data extract");
     let html = HTMLNode::from_node_ref(document)
         .ok_or_else(|| anyhow::anyhow!("Invalid HTMLNode ref generation"))?;
+    bench.add("parse");
     let mut ctx = crate::text_parser::Context {
+        bench: bench,
         meta: h,
         download: other_download,
         min_id: min_id.to_string(),
@@ -35,15 +42,22 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
         map: HashMap::new(),
         count: 0,
     };
-    let text = TextCompound::from_node(&mut ctx, best_node(&html))
+    let node = ctx.bench.add_fn("content extraction", || best_node(&html));
+    let text = TextCompound::from_node(&mut ctx, node)
         .ok_or_else(|| anyhow::anyhow!("Invalid HTML generation"))?;
+    ctx.bench.add("conversion");
     let text = if ctx.meta.title.is_some() {
         text.remove_title()
     } else {
         text
     };
     std::fs::write(&CONFIG.text_element_debug_file, text.to_string()).unwrap();
-    Ok(gen_html_2(&[text], &ctx))
+    let k = gen_html_2(&[text], &ctx);
+    ctx.bench.add("html generation");
+    if CONFIG.bench_mode {
+        ctx.bench.print()
+    };
+    Ok(k)
 }
 
 #[get("/r/{base64url}")]

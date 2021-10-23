@@ -45,6 +45,7 @@ impl<'a> TextCompound<'a> {
             } else {
                 format!("<code>{}&nbsp;</code>", html_escape::encode_text(a))
             }),
+
             TextCompound::Img(a) => Cow::Owned(format!("<img src=\"{}\">", a)),
             Self::H(c, a, b) => {
                 let c: Vec<String> = c

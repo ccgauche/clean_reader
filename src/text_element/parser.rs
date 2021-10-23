@@ -9,6 +9,31 @@ use crate::{
 use super::TextCompound;
 
 impl<'a> TextCompound<'a> {
+    pub fn text(&self) -> String {
+        match self {
+            TextCompound::Raw(a) => a.to_string(),
+            TextCompound::Code(a) => a.to_string(),
+            TextCompound::Link(a, _) => a.text(),
+            TextCompound::Italic(a)
+            | TextCompound::Bold(a)
+            | TextCompound::Sup(a)
+            | TextCompound::Sub(a)
+            | TextCompound::Small(a)
+            | TextCompound::Abbr(a, _)
+            | TextCompound::P(a)
+            | TextCompound::Quote(a)
+            | TextCompound::H(_, _, a) => a.text(),
+            TextCompound::Array(a) | TextCompound::Ul(a) => {
+                a.iter().map(|x| x.text()).collect::<Vec<_>>().join("")
+            }
+            TextCompound::Img(_) | TextCompound::Br => todo!(),
+            TextCompound::Table(a) => a
+                .iter()
+                .map(|x| x.iter().map(|(_, x)| x.text()).collect::<Vec<_>>().join(""))
+                .collect::<Vec<_>>()
+                .join(""),
+        }
+    }
     pub fn from_array(ctx: &mut Context<'a>, node: &'a [HTMLNode]) -> Option<Self> {
         let mut nodes: Vec<Self> = node.iter().flat_map(|x| Self::from_node(ctx, x)).collect();
         if nodes.len() <= 1 {
@@ -75,13 +100,28 @@ impl<'a> TextCompound<'a> {
                     "sub" => Some(Self::Sub(box Self::from_array(ctx, c)?)),
                     "sup" => Some(Self::Sup(box Self::from_array(ctx, c)?)),
                     "img" => Some(Self::Img(get_img_link_map(ctx, b)?)),
-                    "h1" | "h2" | "h3" | "h4" | "h5" => Some(Self::H(
-                        b.get("id")
-                            .map(|x| x.split(' ').map(Cow::Borrowed).collect())
-                            .unwrap_or_default(),
-                        name.parse().unwrap(),
-                        box Self::from_array(ctx, c)?,
-                    )),
+                    "h1" | "h2" | "h3" | "h4" | "h5" => {
+                        let h = Self::from_array(ctx, c)?;
+                        if let Some(e) = &ctx.meta.title {
+                            if e.chars()
+                                .filter(|x| matches!(x, 'a'..='z' | 'A'..='Z' | '0'..='9'))
+                                .collect::<String>()
+                                == h.text()
+                                    .chars()
+                                    .filter(|x| matches!(x, 'a'..='z' | 'A'..='Z' | '0'..='9'))
+                                    .collect::<String>()
+                            {
+                                return None;
+                            }
+                        }
+                        Some(Self::H(
+                            b.get("id")
+                                .map(|x| x.split(' ').map(Cow::Borrowed).collect())
+                                .unwrap_or_default(),
+                            name.parse().unwrap(),
+                            box h,
+                        ))
+                    }
                     "figure" | "figcaption" => {
                         if let Some(HTMLNode::Node(a, _, c)) = c.last() {
                             if a == "figcaption" {

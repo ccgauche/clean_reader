@@ -8,6 +8,7 @@ pub struct Config {
     pub database_file: String,
     pub text_element_debug_file: String,
     pub address: String,
+    pub bench_mode: bool,
 }
 
 pub static CONFIG: Lazy<Config> =
