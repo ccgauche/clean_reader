@@ -13,36 +13,44 @@
         background-color: #222;
         font-family: Arial, sans-serif;
       }
+
       .container {
-        max-width: 30rem;
+        max-width: min(60rem, 90vw);
         margin: auto;
       }
+      .container.invert img {
+        filter: invert(1);
+      }
+
       a {
         color: #3498db;
       }
+
       quote {
         border-left: 4px solid #aaa;
         display: block;
-        padding: 0.5rem 0;
-        margin: 0.5rem 0;
+        padding: 0.5rem 0rem;
+        margin: 0.5rem 0rem;
         padding-left: 1rem;
         color: #ababab;
       }
+
       img {
         display: block;
         max-width: 30rem;
       }
+
       table {
-        border: 1px solid #fff;
+        border: 1px solid white;
         border-collapse: collapse;
         overflow-x: auto;
         max-width: 100%;
         width: max-content;
         display: block;
       }
-      table td,
-      table th {
-        border: 1px solid #fff;
+      table th,
+      table td {
+        border: 1px solid white;
         padding: 6px 13px;
       }
       table tr:nth-child(2n + 1) {
@@ -59,8 +67,17 @@
   </head>
 
   <body>
-    <div class="container" id="ctn">%%CODE%%%%DOWNLOAD%%</div>
+    <div class="container" id="ctn">
+      <quote
+        ><a href="%%URL%%">Official website</a
+        ><a onclick="i()" href="#" style="float: right">Invert colors</a></quote
+      >%%CODE%%%%DOWNLOAD%%
+    </div>
     %%start:code%%
+    <script>
+      hljs.highlightAll();
+    </script>
+    %%end%%
     <script>
       let i = () => {
         let k = document.getElementById("ctn");
@@ -70,8 +87,6 @@
           k.classList.add("invert");
         }
       };
-      hljs.highlightAll();
     </script>
-    %%end%%
   </body>
 </html>

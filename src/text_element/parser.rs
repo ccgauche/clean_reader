@@ -26,7 +26,7 @@ impl<'a> TextCompound<'a> {
             TextCompound::Array(a) | TextCompound::Ul(a) => {
                 a.iter().map(|x| x.text()).collect::<Vec<_>>().join("")
             }
-            TextCompound::Img(_) | TextCompound::Br => todo!(),
+            TextCompound::Img(_) | TextCompound::Br => String::new(),
             TextCompound::Table(a) => a
                 .iter()
                 .map(|x| x.iter().map(|(_, x)| x.text()).collect::<Vec<_>>().join(""))

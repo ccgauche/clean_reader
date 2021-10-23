@@ -51,10 +51,6 @@ const TEMPLATE: &str = include_str!("../template/template.html");
 
 pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
     let k = &[
-        TextCompound::Quote(box TextCompound::Link(
-            Box::new(TextCompound::Raw(Cow::Borrowed("Official website"))),
-            Cow::Borrowed(ctx.url.as_str()),
-        )),
         TextCompound::H(
             vec![Cow::Borrowed("main-title")],
             Header::H1,
@@ -81,6 +77,7 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
     .join("\n");
     if k.contains("<code>") {
         TEMPLATE
+        .replace("%%URL%%", ctx.url.as_str())
             .replace("%%start:code%%", "")
             .replace("%%end%%", "")
             .replace("%%CODE%%", k)
@@ -92,6 +89,7 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
         use regex::Regex;
         let re = Regex::new(r"%%start:code%%[^%]+%%end%%").unwrap();
         re.replace_all(TEMPLATE, "")
+        .replace("%%URL%%", ctx.url.as_str())
             .replace("%%CODE%%", k)
             .replace("%%DOWNLOAD%%", &if ctx.download {
                 String::new()
