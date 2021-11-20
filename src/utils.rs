@@ -5,6 +5,7 @@ use reqwest::Url;
 use anyhow::*;
 
 use crate::{
+    config::{Config, CONFIG},
     text_element::{Header, TextCompound},
     text_parser::Context,
 };
@@ -126,8 +127,12 @@ pub fn http_get(url: &str) -> Result<String> {
     .header("Accept-Language","fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7")
     .header("Accept-Encoding","gzip, deflate")
     .header("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-    .send()?.bytes()?;
-    if k.len() > 1024 * 1024 {
+    .send()?;
+    if k.content_length().unwrap_or(0) > CONFIG.max_size {
+        return Err(anyhow!("File too big"));
+    }
+    let k = k.bytes()?;
+    if k.len() > CONFIG.max_size as usize {
         return Err(anyhow!("File too big"));
     }
     let k1 = String::from_utf8_lossy(&k);

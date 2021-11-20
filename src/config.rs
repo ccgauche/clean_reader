@@ -9,6 +9,7 @@ pub struct Config {
     pub text_element_debug_file: String,
     pub address: String,
     pub bench_mode: bool,
+    pub max_size: u64,
 }
 
 pub static CONFIG: Lazy<Config> =
