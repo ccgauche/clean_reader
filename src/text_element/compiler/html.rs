@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::{
     cache::get_shortened_from_url,
     text_element::{Header, TextCompound},
@@ -8,45 +6,81 @@ use crate::{
 };
 
 impl<'a> TextCompound<'a> {
-    pub fn html(&'a self, ctx: &Context) -> Option<Cow<'a, str>> {
-        let k: Cow<'a, str> = match self {
-            TextCompound::Raw(a) => html_escape::encode_text(a),
+    pub fn html(&'a self, ctx: &Context, string: &mut String) {
+        match self {
+            TextCompound::Raw(a) => {
+                string.push_str(&html_escape::encode_text(a));
+                string.push(' ');
+            }
             TextCompound::Link(a, b) => {
-                let a = a.html(ctx)?;
-                Cow::Owned(
-                    if !ctx.download
-                        && !b.starts_with('#')
-                        && is_html(b.as_ref())
-                        && !a.contains("Official website")
-                    {
-                        format!("<a href=\"/m/{}\">{}</a>", get_shortened_from_url(b), a)
-                    } else {
-                        format!("<a href=\"{}\">{}</a>", b, a)
-                    },
-                )
+                string.push_str("<a href=\"");
+                if !ctx.download
+                    && !b.starts_with("mailto:")
+                    && !b.starts_with('#')
+                    && is_html(b.as_ref())
+                {
+                    string.push_str("/m/");
+                    string.push_str(&get_shortened_from_url(b));
+                } else {
+                    string.push_str(b);
+                }
+                string.push_str("\">");
+                a.html(ctx, string);
+                string.push_str("</a>");
             }
-            TextCompound::Italic(a) => Cow::Owned(format!("<i>{} </i>", a.html(ctx)?)),
-            TextCompound::Bold(a) => Cow::Owned(format!("<b>{} </b>", a.html(ctx)?)),
-            TextCompound::Array(a) => Cow::Owned(
-                a.iter()
-                    .flat_map(|x| x.html(ctx))
-                    .collect::<Vec<_>>()
-                    .join(""),
-            ),
+            TextCompound::Italic(a) => {
+                string.push_str("<i>");
+                a.html(ctx, string);
+                string.push_str("</i>");
+            }
+            TextCompound::Bold(a) => {
+                string.push_str("<b>");
+                a.html(ctx, string);
+                string.push_str("</b>");
+            }
+            TextCompound::Array(a) => a.iter().for_each(|x| x.html(ctx, string)),
             TextCompound::Abbr(a, b) => {
-                Cow::Owned(format!("<abbr title=\"{}\">{} </abbr>", b, a.html(ctx)?))
+                string.push_str("<abbr title=\"");
+                string.push_str(b);
+                string.push_str("\">");
+                a.html(ctx, string);
+                string.push_str("</abbr>");
             }
-            TextCompound::Sup(a) => Cow::Owned(format!("<sup>{} </sup>", a.html(ctx)?)),
-            TextCompound::Sub(a) => Cow::Owned(format!("<sub>{} </sub>", a.html(ctx)?)),
-            TextCompound::Small(a) => Cow::Owned(format!("<small>{} </small>", a.html(ctx)?)),
-            TextCompound::Br => Cow::Borrowed("<br/>"),
-            TextCompound::Code(a) => Cow::Owned(if a.contains('\n') {
-                format!("<pre><code>{}</code></pre>", html_escape::encode_text(a))
-            } else {
-                format!("<code>{}&nbsp;</code>", html_escape::encode_text(a))
-            }),
+            TextCompound::Sup(a) => {
+                string.push_str("<sup>");
+                a.html(ctx, string);
+                string.push_str("</sup>");
+            }
+            TextCompound::Sub(a) => {
+                string.push_str("<sub>");
+                a.html(ctx, string);
+                string.push_str("</sub>");
+            }
+            TextCompound::Small(a) => {
+                string.push_str("<small>");
+                a.html(ctx, string);
+                string.push_str("</small>");
+            }
+            TextCompound::Br => {
+                string.push_str("<br/>");
+            }
+            TextCompound::Code(a) => {
+                if a.contains('\n') {
+                    string.push_str("<pre><code>");
+                    string.push_str(&html_escape::encode_text(a));
+                    string.push_str("</code></pre>");
+                } else {
+                    string.push_str("<code>");
+                    string.push_str(&html_escape::encode_text(a));
+                    string.push_str("&nbsp;</code>");
+                }
+            }
 
-            TextCompound::Img(a) => Cow::Owned(format!("<img src=\"{}\">", a)),
+            TextCompound::Img(a) => {
+                string.push_str("<img src=\"");
+                string.push_str(&a);
+                string.push_str("\">");
+            }
             Self::H(c, a, b) => {
                 let c: Vec<String> = c
                     .iter()
@@ -54,52 +88,59 @@ impl<'a> TextCompound<'a> {
                     .map(|x| format!("#{}", x))
                     .collect();
                 let header = match a {
-                    Header::H1 => 1,
-                    Header::H2 => 2,
-                    Header::H3 => 3,
-                    Header::H4 => 4,
-                    Header::H5 => 5,
+                    Header::H1 => '1',
+                    Header::H2 => '2',
+                    Header::H3 => '3',
+                    Header::H4 => '4',
+                    Header::H5 => '5',
                 };
-                Cow::Owned(format!(
-                    "<h{}{}>{}</h{}>",
-                    header,
-                    if c.is_empty() {
-                        String::new()
-                    } else {
-                        format!(" id=\"{}\"", c.join(" "))
-                    },
-                    b.html(ctx)?,
-                    header
-                ))
-            }
-            Self::Ul(a) => Cow::Owned(format!(
-                "<ul>{}</ul>",
-                a.iter()
-                    .flat_map(|x| Some(format!("<li>{}</li>", x.html(ctx)?)))
-                    .collect::<Vec<_>>()
-                    .join("")
-            )),
 
-            Self::P(a) => Cow::Owned(format!("<p>{}</p>", a.html(ctx)?)),
+                string.push_str("<h");
+                string.push(header);
+                if !c.is_empty() {
+                    string.push_str(" id=\"");
+                    string.push_str(&c.join(" "));
+                    string.push('"');
+                }
+                string.push('>');
+                b.html(ctx, string);
+                string.push_str("</h");
+                string.push(header);
+                string.push('>');
+            }
+            Self::Ul(a) => {
+                string.push_str("<ul>");
+                for x in a {
+                    string.push_str("<li>");
+                    x.html(ctx, string);
+                    string.push_str("</li>");
+                }
+                string.push_str("</ul>");
+            }
+
+            Self::P(a) => {
+                string.push_str("<p>");
+                a.html(ctx, string);
+                string.push_str("</p>");
+            }
             Self::Table(a) => {
-                let mut string = String::from("<table>");
+                string.push_str("<table>");
                 for i in a {
                     string.push_str("<tr>");
                     for (a, b) in i {
                         string.push_str(if *a { "<th>" } else { "<td>" });
-                        string.push_str(&b.html(ctx)?);
+                        b.html(ctx, string);
                         string.push_str(if *a { "</th>" } else { "</td>" });
                     }
                     string.push_str("</tr>");
                 }
                 string.push_str("</table>");
-                Cow::Owned(string)
             }
-            Self::Quote(a) => Cow::Owned(format!("<quote>{}</quote>", a.html(ctx)?)),
-        };
-        if k.trim().is_empty() {
-            return None;
+            Self::Quote(a) => {
+                string.push_str("<quote>");
+                a.html(ctx, string);
+                string.push_str("</quote>");
+            }
         }
-        Some(k)
     }
 }

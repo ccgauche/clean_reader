@@ -50,7 +50,8 @@ pub fn get_img_link_map<'a>(
 const TEMPLATE: &str = include_str!("../template/template.html");
 
 pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
-    let k = &[
+    let mut string = String::new();
+    [
         TextCompound::H(
             vec![Cow::Borrowed("main-title")],
             Header::H1,
@@ -72,15 +73,13 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
     ]
     .iter()
     .chain(parts.iter())
-    .flat_map(|x| x.html(ctx))
-    .collect::<Vec<_>>()
-    .join("\n");
-    if k.contains("<code>") {
+    .for_each(|x| x.html(ctx, &mut string));
+    if string.contains("<code>") {
         TEMPLATE
         .replace("%%URL%%", ctx.url.as_str())
             .replace("%%start:code%%", "")
             .replace("%%end%%", "")
-            .replace("%%CODE%%", k)
+            .replace("%%CODE%%", &string)
             .replace("%%DOWNLOAD%%", &if ctx.download {
                 String::new()
             } else {
@@ -90,7 +89,7 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
         let re = Regex::new(r"%%start:code%%[^%]+%%end%%").unwrap();
         re.replace_all(TEMPLATE, "")
         .replace("%%URL%%", ctx.url.as_str())
-            .replace("%%CODE%%", k)
+            .replace("%%CODE%%", &string)
             .replace("%%DOWNLOAD%%", &if ctx.download {
                 String::new()
             } else {

@@ -5,7 +5,7 @@
     "88": "icons.png"
   },
   "description": "Clean Reader by ccgauche | Clean reader make for a clean, simpler, greener web.",
-  "permissions": ["<all_urls>", "contextMenus"],
+  "permissions": ["<all_urls>", "contextMenus", "storage"],
   "background": {
     "scripts": ["background.js"]
   },
@@ -15,5 +15,8 @@
       "js": ["cr.js"]
     }
   ],
+  "browser_action": {
+    "default_popup": "popup.html"
+  },
   "manifest_version": 2
 }
