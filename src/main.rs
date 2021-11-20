@@ -34,7 +34,7 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
         .ok_or_else(|| anyhow::anyhow!("Invalid HTMLNode ref generation"))?;
     bench.add("parse");
     let mut ctx = crate::text_parser::Context {
-        bench: bench,
+        bench,
         meta: h,
         download: other_download,
         min_id: min_id.to_string(),

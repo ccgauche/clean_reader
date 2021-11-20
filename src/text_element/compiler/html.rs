@@ -78,7 +78,7 @@ impl<'a> TextCompound<'a> {
 
             TextCompound::Img(a) => {
                 string.push_str("<img src=\"");
-                string.push_str(&a);
+                string.push_str(a);
                 string.push_str("\">");
             }
             Self::H(c, a, b) => {

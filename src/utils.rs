@@ -15,7 +15,7 @@ pub fn filter_names(string: &str) -> &str {
     *NAMES_TO_FILTER
         .iter()
         .find(|x| string.contains(*x))
-        .unwrap_or_else(|| &string)
+        .unwrap_or(&string)
 }
 
 const IMAGE_EXTENSIONS: &[&str] = &[
