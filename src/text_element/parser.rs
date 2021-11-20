@@ -67,7 +67,16 @@ impl<'a> TextCompound<'a> {
                             })
                             .collect(),
                     )),
-                    "p" | "time" => Some(Self::P(box Self::from_array(ctx, c)?)),
+                    "time" => Some(Self::P(box Self::from_array(ctx, c)?)),
+                    "p" => {
+                        if b.get("class").map(|x| x.contains("code")).unwrap_or(false) {
+                            let mut k = Self::get_text(node);
+                            k.push('\n');
+                            Some(Self::Code(k))
+                        } else {
+                            Some(Self::P(box Self::from_array(ctx, c)?))
+                        }
+                    }
                     "a" => b
                         .get("href")
                         .map(|x| ctx.absolutize(x))
