@@ -2,10 +2,10 @@
 
 ## What's clean reader?
 
-Clean Reader is an open-source reader mode written in Rust.
+Clean Reader is an open-source server-side reader mode written in Rust.
 Main goals of clean reader:
 
-- Reduce data usage and make the web greener (92% less data usage)
+- Reduce data usage and make the web greener (92% less data usage on average)
 - Extract only meaningful content
 - Remove all web bloat (JS, Fonts, CSS, Ads...)
 - Make pages static and tracker free
@@ -22,10 +22,10 @@ Main goals of clean reader:
 - And generate back a tiny HTML file
 - Cache it to reduce data consumption
 
-## Some numbers?
+## Some numbers
 
 - As of September 2016, the average web page is 2496 kB in size and requires 140 requests.
-- The average clean reader page is 14kB in size
+- The average clean reader page is 14kB in size and requires one request.
 
 ![https://i.imgur.com/QdrBGGO.png](https://i.imgur.com/QdrBGGO.png)
 
@@ -33,15 +33,15 @@ Main goals of clean reader:
 
 ### User
 
-#### Google chrome
+#### Google chrome / Firefox
 
 Download the extension and load it in google chrome
 
-#### Firefox
+#### Hosting your own instance
 
-WIP
+Go in `releases` and download the latest server for your OS
 
-### Developper
+### Developer
 
 #### Compile from source
 
