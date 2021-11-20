@@ -5,7 +5,7 @@ const ELEMENTS: &[(&[&str], f32)] = &[
         &["h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "cite"],
         4.,
     ),
-    (&["p", "br"], 10.),
+    (&["p", "br", "code", "pre"], 10.),
     (&["ul"], -2.),
 ];
 
