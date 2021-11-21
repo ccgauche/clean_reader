@@ -6,24 +6,24 @@ impl<'a> TextCompound<'a> {
     #[allow(unused)]
     pub fn markdown(&'a self) -> Option<Cow<'a, str>> {
         let k = match self {
-            TextCompound::Raw(a) => Cow::Borrowed(a.borrow()),
-            TextCompound::Link(a, b) => Cow::Owned(format!("[{}]({})", a.markdown()?, b)),
-            TextCompound::Italic(a) => Cow::Owned(format!("*{}*", a.markdown()?)),
-            TextCompound::Bold(a) => Cow::Owned(format!("**{}**", a.markdown()?)),
-            TextCompound::Underline(a) => Cow::Owned(format!("**{}**", a.markdown()?)),
-            TextCompound::Array(a) => Cow::Owned(
+            Self::Raw(a) => Cow::Borrowed(a.borrow()),
+            Self::Link(a, b) => Cow::Owned(format!("[{}]({})", a.markdown()?, b)),
+            Self::Italic(a) => Cow::Owned(format!("*{}*", a.markdown()?)),
+            Self::Bold(a) => Cow::Owned(format!("**{}**", a.markdown()?)),
+            Self::Underline(a) => Cow::Owned(format!("**{}**", a.markdown()?)),
+            Self::Array(a) => Cow::Owned(
                 a.iter()
                     .flat_map(|x| x.markdown())
                     .collect::<Vec<_>>()
                     .join(""),
             ),
-            TextCompound::Abbr(a, b) => Cow::Owned(format!("{} (*{}*)", a.markdown()?, b)),
-            TextCompound::Sup(a) => Cow::Owned(format!("^{}^", a.markdown()?)),
-            TextCompound::Sub(a) => Cow::Owned(format!("~{}~", a.markdown()?)),
-            TextCompound::Small(a) => Cow::Owned(format!("~^{}^~", a.markdown()?)),
-            TextCompound::Br => Cow::Borrowed("\n"),
-            TextCompound::Code(a) => Cow::Owned(format!("\n```\n{}\n```\n", a)),
-            TextCompound::Img(a) => Cow::Owned(format!("![{}]({})", a, a)),
+            Self::Abbr(a, b) => Cow::Owned(format!("{} (*{}*)", a.markdown()?, b)),
+            Self::Sup(a) => Cow::Owned(format!("^{}^", a.markdown()?)),
+            Self::Sub(a) => Cow::Owned(format!("~{}~", a.markdown()?)),
+            Self::Small(a) => Cow::Owned(format!("~^{}^~", a.markdown()?)),
+            Self::Br => Cow::Borrowed("\n"),
+            Self::Code(a) => Cow::Owned(format!("\n```\n{}\n```\n", a)),
+            Self::Img(a) => Cow::Owned(format!("![{}]({})", a, a)),
             Self::H(_, a, b) => Cow::Owned(format!(
                 "{} {}",
                 match a {
@@ -74,7 +74,7 @@ impl<'a> TextCompound<'a> {
             }
             Self::Quote(a) => Cow::Owned(format!(" > {}", a.markdown()?)),
         };
-        if k.trim().is_empty() && !matches!(self, TextCompound::Br) {
+        if k.trim().is_empty() && !matches!(self, Self::Br) {
             return None;
         }
         Some(k)
