@@ -53,10 +53,10 @@ impl HTMLNode {
             }
             let mut childrens = noderef
                 .children()
-                .flat_map(HTMLNode::from_node_ref)
+                .flat_map(Self::from_node_ref)
                 .collect::<Vec<_>>();
             if ALLOWED_ALONE.contains(&name) {
-                return Some(HTMLNode::Node(name.to_owned(), attrs, childrens));
+                return Some(Self::Node(name.to_owned(), attrs, childrens));
             }
             if childrens.is_empty() {
                 None
@@ -64,18 +64,18 @@ impl HTMLNode {
                 && childrens.len() == 1
                 && childrens
                     .last()
-                    .map(|x| matches!(x, HTMLNode::Node(..)))
+                    .map(|x| matches!(x, Self::Node(..)))
                     .unwrap_or(false)
             {
                 childrens.pop()
             } else {
-                Some(HTMLNode::Node(name.to_owned(), attrs, childrens))
+                Some(Self::Node(name.to_owned(), attrs, childrens))
             }
         } else if let Some(e) = noderef.as_text() {
             if e.borrow().trim().is_empty() {
                 None
             } else {
-                Some(HTMLNode::Text(e.borrow().to_owned()))
+                Some(Self::Text(e.borrow().to_owned()))
             }
         } else {
             None
@@ -83,14 +83,14 @@ impl HTMLNode {
     }
     pub fn get_node(&self) -> Option<&Vec<HTMLNode>> {
         match self {
-            HTMLNode::Node(_, _, a) => Some(a),
-            HTMLNode::Text(_) => None,
+            Self::Node(_, _, a) => Some(a),
+            Self::Text(_) => None,
         }
     }
     pub fn get_tag_name(&self) -> Option<&str> {
         match self {
-            HTMLNode::Node(a, _, _) => Some(a),
-            HTMLNode::Text(_) => None,
+            Self::Node(a, _, _) => Some(a),
+            Self::Text(_) => None,
         }
     }
     pub fn select(&self, tag_names: &[&str]) -> Vec<&Self> {
@@ -110,7 +110,7 @@ impl HTMLNode {
 impl Display for HTMLNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HTMLNode::Node(a, b, c) => write!(
+            Self::Node(a, b, c) => write!(
                 f,
                 "<{} {}>\n  {}\n</{}>",
                 a,
@@ -125,7 +125,7 @@ impl Display for HTMLNode {
                     .replace("\n", "\n  "),
                 a
             ),
-            HTMLNode::Text(e) => write!(f, "{}", e),
+            Self::Text(e) => write!(f, "{}", e),
         }
     }
 }
