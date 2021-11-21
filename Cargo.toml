@@ -12,7 +12,8 @@ reqwest = { version = "*", features = [
     "gzip",
     "deflate",
     "cookies",
-] }
+    "rustls-tls",
+], default-features = false }
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 toml = "0.5.8"

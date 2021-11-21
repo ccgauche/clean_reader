@@ -4,5 +4,5 @@ cache_folder = "cache"
 text_element_debug_file = "target/text_element.txt"
 database_file = "template/db.json"
 address = "127.0.0.1:8080"
-bench_mode = true
+bench_mode = false
 max_size = 1048576
