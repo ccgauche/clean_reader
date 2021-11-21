@@ -2,7 +2,7 @@ use std::time::Instant;
 
 pub struct Monitor {
     start_point: Instant,
-    points: Vec<(String, Instant)>,
+    points: Vec<(&'static str, Instant)>,
 }
 
 impl Monitor {
@@ -21,13 +21,13 @@ impl Monitor {
         }
     }
 
-    pub fn add_fn<T>(&mut self, name: &str, fx: impl Fn() -> T) -> T {
+    pub fn add_fn<T>(&mut self, name: &'static str, fx: impl Fn() -> T) -> T {
         let k = fx();
         self.add(name);
         k
     }
 
-    pub fn add(&mut self, name: &str) {
-        self.points.push((name.to_owned(), Instant::now()));
+    pub fn add(&mut self, name: &'static str) {
+        self.points.push((name, Instant::now()));
     }
 }
