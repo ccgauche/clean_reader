@@ -28,6 +28,18 @@ impl FromStr for Header {
     }
 }
 
+impl Header {
+    fn to_str(&self) -> &'static str {
+        match self {
+            Self::H1 => "h1",
+            Self::H2 => "h2",
+            Self::H3 => "h3",
+            Self::H4 => "h4",
+            Self::H5 => "h5",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum TextCompound<'a> {
     Raw(Cow<'a, str>),

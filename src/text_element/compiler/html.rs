@@ -1,8 +1,5 @@
 use crate::{
-    cache::get_shortened_from_url,
-    text_element::{Header, TextCompound},
-    text_parser::Context,
-    utils::is_html,
+    cache::get_shortened_from_url, text_element::TextCompound, text_parser::Context, utils::is_html,
 };
 
 impl<'a> TextCompound<'a> {
@@ -83,17 +80,10 @@ impl<'a> TextCompound<'a> {
                     .flat_map(|x| ctx.map.get(x.as_ref()))
                     .map(|x| format!("#{}", x))
                     .collect();
-                let header = match a {
-                    Header::H1 => "h1",
-                    Header::H2 => "h2",
-                    Header::H3 => "h3",
-                    Header::H4 => "h4",
-                    Header::H5 => "h5",
-                };
 
                 push_html(
                     string,
-                    header,
+                    a.to_str(),
                     if !c.is_empty() {
                         Some(("id".to_string(), c.join(" ")))
                     } else {
