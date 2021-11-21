@@ -8,11 +8,11 @@ use crate::{
 impl<'a> TextCompound<'a> {
     pub fn html(&'a self, ctx: &Context, string: &mut String) {
         match self {
-            TextCompound::Raw(a) => {
+            Self::Raw(a) => {
                 string.push_str(&html_escape::encode_text(a));
                 string.push(' ');
             }
-            TextCompound::Link(a, b) => {
+            Self::Link(a, b) => {
                 push_html(
                     string,
                     "a",
@@ -32,32 +32,32 @@ impl<'a> TextCompound<'a> {
                     ctx,
                 );
             }
-            TextCompound::Italic(a) => {
+            Self::Italic(a) => {
                 push_simple_html(string, "i", a, ctx);
             }
-            TextCompound::Bold(a) => {
+            Self::Bold(a) => {
                 push_simple_html(string, "b", a, ctx);
             }
-            TextCompound::Underline(a) => {
+            Self::Underline(a) => {
                 push_simple_html(string, "u", a, ctx);
             }
-            TextCompound::Array(a) => a.iter().for_each(|x| x.html(ctx, string)),
-            TextCompound::Abbr(a, b) => {
+            Self::Array(a) => a.iter().for_each(|x| x.html(ctx, string)),
+            Self::Abbr(a, b) => {
                 push_html(string, "small", Some(("title", b.as_ref())), a, ctx);
             }
-            TextCompound::Sup(a) => {
+            Self::Sup(a) => {
                 push_simple_html(string, "sup", a, ctx);
             }
-            TextCompound::Sub(a) => {
+            Self::Sub(a) => {
                 push_simple_html(string, "sub", a, ctx);
             }
-            TextCompound::Small(a) => {
+            Self::Small(a) => {
                 push_simple_html(string, "small", a, ctx);
             }
-            TextCompound::Br => {
+            Self::Br => {
                 string.push_str("<br/>");
             }
-            TextCompound::Code(a) => {
+            Self::Code(a) => {
                 if a.contains('\n') {
                     push_simple(string, "pre", |string| {
                         push_simple(string, "code", |string| {
@@ -72,7 +72,7 @@ impl<'a> TextCompound<'a> {
                 }
             }
 
-            TextCompound::Img(a) => {
+            Self::Img(a) => {
                 string.push_str("<img src=\"");
                 string.push_str(a);
                 string.push_str("\">");
