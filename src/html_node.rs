@@ -27,6 +27,17 @@ pub enum HTMLNode {
 }
 
 impl HTMLNode {
+    pub fn get_text(&self) -> String {
+        fn inner(node: &HTMLNode, string: &mut String) {
+            match node {
+                HTMLNode::Node(_, _, c) => c.iter().for_each(|x| inner(x, string)),
+                HTMLNode::Text(a) => string.push_str(a),
+            }
+        }
+        let mut s = String::new();
+        inner(self, &mut s);
+        s
+    }
     pub fn from_node_ref(noderef: NodeRef) -> Option<HTMLNode> {
         if let Some((name, attrs)) = noderef
             .as_element()

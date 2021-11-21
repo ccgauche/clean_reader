@@ -72,7 +72,7 @@ impl<'a> TextCompound<'a> {
                     "time" => Some(Self::P(box Self::from_array(ctx, c)?)),
                     "p" => {
                         if b.get("class").map(|x| x.contains("code")).unwrap_or(false) {
-                            let mut k = Self::get_text(node);
+                            let mut k = node.get_text();
                             k.push('\n');
                             Some(Self::Code(k))
                         } else {
@@ -143,7 +143,7 @@ impl<'a> TextCompound<'a> {
                         Some(Self::Quote(box Self::from_array(ctx, c)?))
                     }
                     "quote" | "blockquote" => Some(Self::Quote(box Self::from_array(ctx, c)?)),
-                    "cite" | "code" | "pre" => Some(Self::Code(Self::get_text(node))),
+                    "cite" | "code" | "pre" => Some(Self::Code(node.get_text())),
                     "math" => None, // MATH aren't supported yet
                     e => {
                         println!("Invalid element {}", e);

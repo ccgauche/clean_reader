@@ -1,7 +1,5 @@
 use std::{borrow::Cow, str::FromStr};
 
-use crate::html_node::HTMLNode;
-
 mod compiler;
 mod display;
 mod parser;
@@ -53,17 +51,6 @@ pub enum TextCompound<'a> {
 }
 
 impl TextCompound<'_> {
-    pub fn get_text(node: &HTMLNode) -> String {
-        fn inner(node: &HTMLNode, string: &mut String) {
-            match node {
-                HTMLNode::Node(_, _, c) => c.iter().for_each(|x| inner(x, string)),
-                HTMLNode::Text(a) => string.push_str(a),
-            }
-        }
-        let mut s = String::new();
-        inner(node, &mut s);
-        s
-    }
     pub fn remove_title(self) -> Self {
         match self {
             Self::Array(mut e) => {
