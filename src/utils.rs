@@ -5,7 +5,7 @@ use reqwest::Url;
 use anyhow::*;
 
 use crate::{
-    config::{Config, CONFIG},
+    config::CONFIG,
     text_element::{Header, TextCompound},
     text_parser::Context,
 };
