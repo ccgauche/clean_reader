@@ -18,6 +18,7 @@ impl<'a> TextCompound<'a> {
             | TextCompound::Bold(a)
             | TextCompound::Sup(a)
             | TextCompound::Sub(a)
+            | TextCompound::Underline(a)
             | TextCompound::Small(a)
             | TextCompound::Abbr(a, _)
             | TextCompound::P(a)
@@ -84,6 +85,7 @@ impl<'a> TextCompound<'a> {
                         .map(|a| Some(Self::Link(box Self::from_array(ctx, c)?, a)))
                         .flatten()
                         .or_else(|| Self::from_array(ctx, c)),
+                    "u" => Some(Self::Underline(box Self::from_array(ctx, c)?)),
                     "i" | "em" => Some(Self::Italic(box Self::from_array(ctx, c)?)),
                     "b" | "strong" => Some(Self::Bold(box Self::from_array(ctx, c)?)),
                     "br" | "wbr" | "hr" => Some(Self::Br),

@@ -36,6 +36,7 @@ pub enum TextCompound<'a> {
     Link(Box<TextCompound<'a>>, Cow<'a, str>),
     Italic(Box<TextCompound<'a>>),
     Bold(Box<TextCompound<'a>>),
+    Underline(Box<TextCompound<'a>>),
     Array(Vec<TextCompound<'a>>),
     Abbr(Box<TextCompound<'a>>, Cow<'a, str>),
     Sup(Box<TextCompound<'a>>),

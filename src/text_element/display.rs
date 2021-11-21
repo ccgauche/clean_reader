@@ -9,6 +9,7 @@ impl Display for TextCompound<'_> {
             Self::Link(a, b) => write!(f, "Raw({},{})", a, b),
             Self::Italic(a) => write!(f, "Italic({})", a),
             Self::Bold(a) => write!(f, "Bold({})", a),
+            Self::Underline(a) => write!(f, "Underline({})", a),
             Self::Array(a) => write!(
                 f,
                 "{}",

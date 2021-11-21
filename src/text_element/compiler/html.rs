@@ -38,6 +38,9 @@ impl<'a> TextCompound<'a> {
             TextCompound::Bold(a) => {
                 push_simple_html(string, "b", a, ctx);
             }
+            TextCompound::Underline(a) => {
+                push_simple_html(string, "u", a, ctx);
+            }
             TextCompound::Array(a) => a.iter().for_each(|x| x.html(ctx, string)),
             TextCompound::Abbr(a, b) => {
                 push_html(string, "small", Some(("title", b.as_ref())), a, ctx);

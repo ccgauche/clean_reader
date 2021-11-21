@@ -10,6 +10,7 @@ impl<'a> TextCompound<'a> {
             TextCompound::Link(a, b) => Cow::Owned(format!("[{}]({})", a.markdown()?, b)),
             TextCompound::Italic(a) => Cow::Owned(format!("*{}*", a.markdown()?)),
             TextCompound::Bold(a) => Cow::Owned(format!("**{}**", a.markdown()?)),
+            TextCompound::Underline(a) => Cow::Owned(format!("**{}**", a.markdown()?)),
             TextCompound::Array(a) => Cow::Owned(
                 a.iter()
                     .flat_map(|x| x.markdown())
