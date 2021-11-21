@@ -9,10 +9,10 @@ use crate::{
 use super::TextCompound;
 
 impl<'a> TextCompound<'a> {
-    pub fn text(&self) -> String {
+    pub fn text(&'a self) -> Cow<'a, str> {
         match self {
-            TextCompound::Raw(a) => a.to_string(),
-            TextCompound::Code(a) => a.to_string(),
+            TextCompound::Raw(a) => Cow::Borrowed(a),
+            TextCompound::Code(a) => Cow::Borrowed(a),
             TextCompound::Link(a, _) => a.text(),
             TextCompound::Italic(a)
             | TextCompound::Bold(a)
@@ -24,14 +24,15 @@ impl<'a> TextCompound<'a> {
             | TextCompound::Quote(a)
             | TextCompound::H(_, _, a) => a.text(),
             TextCompound::Array(a) | TextCompound::Ul(a) => {
-                a.iter().map(|x| x.text()).collect::<Vec<_>>().join("")
+                Cow::Owned(a.iter().map(|x| x.text()).collect::<Vec<_>>().join(""))
             }
-            TextCompound::Img(_) | TextCompound::Br => String::new(),
-            TextCompound::Table(a) => a
-                .iter()
-                .map(|x| x.iter().map(|(_, x)| x.text()).collect::<Vec<_>>().join(""))
-                .collect::<Vec<_>>()
-                .join(""),
+            TextCompound::Img(_) | TextCompound::Br => Cow::Borrowed(""),
+            TextCompound::Table(a) => Cow::Owned(
+                a.iter()
+                    .map(|x| x.iter().map(|(_, x)| x.text()).collect::<Vec<_>>().join(""))
+                    .collect::<Vec<_>>()
+                    .join(""),
+            ),
         }
     }
     pub fn from_array(ctx: &mut Context<'a>, node: &'a [HTMLNode]) -> Option<Self> {
@@ -42,7 +43,7 @@ impl<'a> TextCompound<'a> {
             Some(Self::Array(nodes))
         }
     }
-    //Improve error handling
+    // TODO: Improve error handling
     pub fn from_node(ctx: &mut Context<'a>, node: &'a HTMLNode) -> Option<Self> {
         match node {
             HTMLNode::Node(a, b, c) => {
@@ -127,7 +128,7 @@ impl<'a> TextCompound<'a> {
                             b.get("id")
                                 .map(|x| x.split(' ').map(Cow::Borrowed).collect())
                                 .unwrap_or_default(),
-                            name.parse().unwrap(),
+                            name.parse().ok()?,
                             box h,
                         ))
                     }
@@ -141,6 +142,7 @@ impl<'a> TextCompound<'a> {
                     }
                     "quote" | "blockquote" => Some(Self::Quote(box Self::from_array(ctx, c)?)),
                     "cite" | "code" | "pre" => Some(Self::Code(Self::get_text(node))),
+                    "math" => None, // MATH aren't supported yet
                     e => {
                         println!("Invalid element {}", e);
                         None
