@@ -56,7 +56,20 @@ Go in `releases` and download the latest server for your OS
 
 ## Contribute
 
-All contributions are welcome! Feel free to fork, open issues, create PRs and go on discord.
+All contributions are welcome! Feel free to fork, open issues, create PRs and contact me on discord (ccgauche#6939).
+
+### Todo list
+
+- [ ] Add an image compression / hosting service to increase anonymity
+- [ ] Add a TUI
+- [ ] Add a default server
+- [ ] Create an onion endpoint to this server
+- [ ] Add a button to download as markdown
+- [ ] Compute synthax highlighting on the server side
+- [ ] Add configuration options in the extension
+- [ ] Add a custom KeyBind in the extension
+- [ ] Add a TamperMonkey script as an alternative to the extension
+- [ ] Add a way to download the page as a PDF
 
 ## Special thanks
 

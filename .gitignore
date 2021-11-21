@@ -13,3 +13,4 @@ Cargo.lock
 /cache/
 /template/db.json
 /template/dist
+/extension/*.zip
