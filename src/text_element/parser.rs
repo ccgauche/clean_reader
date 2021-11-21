@@ -11,24 +11,24 @@ use super::TextCompound;
 impl<'a> TextCompound<'a> {
     pub fn text(&'a self) -> Cow<'a, str> {
         match self {
-            TextCompound::Raw(a) => Cow::Borrowed(a),
-            TextCompound::Code(a) => Cow::Borrowed(a),
-            TextCompound::Link(a, _) => a.text(),
-            TextCompound::Italic(a)
-            | TextCompound::Bold(a)
-            | TextCompound::Sup(a)
-            | TextCompound::Sub(a)
-            | TextCompound::Underline(a)
-            | TextCompound::Small(a)
-            | TextCompound::Abbr(a, _)
-            | TextCompound::P(a)
-            | TextCompound::Quote(a)
-            | TextCompound::H(_, _, a) => a.text(),
-            TextCompound::Array(a) | TextCompound::Ul(a) => {
+            Self::Raw(a) => Cow::Borrowed(a),
+            Self::Code(a) => Cow::Borrowed(a),
+            Self::Link(a, _) => a.text(),
+            Self::Italic(a)
+            | Self::Bold(a)
+            | Self::Sup(a)
+            | Self::Sub(a)
+            | Self::Underline(a)
+            | Self::Small(a)
+            | Self::Abbr(a, _)
+            | Self::P(a)
+            | Self::Quote(a)
+            | Self::H(_, _, a) => a.text(),
+            Self::Array(a) | Self::Ul(a) => {
                 Cow::Owned(a.iter().map(|x| x.text()).collect::<Vec<_>>().join(""))
             }
-            TextCompound::Img(_) | TextCompound::Br => Cow::Borrowed(""),
-            TextCompound::Table(a) => Cow::Owned(
+            Self::Img(_) | Self::Br => Cow::Borrowed(""),
+            Self::Table(a) => Cow::Owned(
                 a.iter()
                     .map(|x| x.iter().map(|(_, x)| x.text()).collect::<Vec<_>>().join(""))
                     .collect::<Vec<_>>()
