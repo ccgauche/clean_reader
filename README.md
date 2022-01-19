@@ -36,6 +36,7 @@ Main goals of clean reader:
 #### Google chrome / Firefox
 
 Download the extension and load it in google chrome
+[Firefox extension page](https://addons.mozilla.org/en-US/firefox/addon/clean-reader/)
 
 #### Hosting your own instance
 

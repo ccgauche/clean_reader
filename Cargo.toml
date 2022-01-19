@@ -26,3 +26,14 @@ dashmap = "4.0.2"
 once_cell = "1.8.0"
 html-escape = "0.2.9"
 regex = "1.5.4"
+
+# Image related
+
+ravif = { git = "https://github.com/kornelski/cavif-rs" }
+lodepng = "3.4.6"
+num_cpus = "1.13.0"
+rayon = "1.5.1"
+rgb = "0.8.29"
+cocoa_image = { version = "1.0.4", optional = true }
+imgref = "1.9.1"
+jpeg-decoder = "0.1.22"

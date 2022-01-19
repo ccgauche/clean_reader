@@ -8,6 +8,7 @@ mod bench;
 mod cache;
 mod config;
 mod html_node;
+mod image;
 mod score;
 mod text_element;
 mod text_parser;
@@ -22,6 +23,10 @@ use crate::{
     score::best_node, text_element::TextCompound, utils::gen_html_2,
 };
 
+/**
+ * This is the main function which is called when a page is accessed.
+ * It will parse the page and return the content as string.
+ */
 pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<String> {
     use kuchiki::traits::TendrilSink;
     let mut bench = Monitor::new();
@@ -87,6 +92,14 @@ async fn index_m(web::Path(short): web::Path<String>) -> HttpResponse {
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
+#[get("/i/{short}")]
+async fn index_i(web::Path(short): web::Path<String>) -> HttpResponse {
+    let output: Result<Vec<u8>> = try { std::fs::read(format!("cache/images/{}.avif", short))? };
+    match output {
+        Ok(e) => HttpResponse::Ok().content_type("image/avif").body(e),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
+}
 
 #[get("/d/{short}")]
 async fn download(web::Path(short): web::Path<String>) -> HttpResponse {
@@ -108,6 +121,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(index_r)
             .service(index_m)
+            .service(index_i)
             .service(download)
     })
     .bind(&CONFIG.address)?
