@@ -15,7 +15,7 @@ pub fn get_image_url(url: &str) -> (String, Option<JoinHandle<()>>) {
     if cache_file.exists() {
         (format!("/i/{}", &hash[..8]), None)
     } else {
-        if IMAGE_EXT.iter().any(|x| url.ends_with(x)) {
+        if IMAGE_EXT.iter().any(|x| url.contains(x)) {
             let url = url.to_owned();
             let cache_file = cache_file.to_owned();
             let k = std::thread::spawn(move || match utils::http_get_bytes(&url) {
