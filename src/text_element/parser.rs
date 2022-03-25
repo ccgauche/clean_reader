@@ -82,8 +82,7 @@ impl<'a> TextCompound<'a> {
                     "a" => b
                         .get("href")
                         .map(|x| ctx.absolutize(x))
-                        .map(|a| Some(Self::Link(box Self::from_array(ctx, c)?, a)))
-                        .flatten()
+                        .and_then(|a| Some(Self::Link(box Self::from_array(ctx, c)?, a)))
                         .or_else(|| Self::from_array(ctx, c)),
                     "u" => Some(Self::Underline(box Self::from_array(ctx, c)?)),
                     "i" | "em" => Some(Self::Italic(box Self::from_array(ctx, c)?)),

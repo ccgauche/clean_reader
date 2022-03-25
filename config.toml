@@ -1,8 +1,11 @@
 enable_debug_text_element = false
-enable_cache = true
+enable_cache = false
+recompress_images = true
+debug_mode = true
 cache_folder = "cache"
 text_element_debug_file = "target/text_element.txt"
+parsed_debug_file = "target/parsefile.txt"
 database_file = "template/db.json"
 address = "127.0.0.1:8080"
 bench_mode = true
-max_size = 1048576
+max_size = 8048576

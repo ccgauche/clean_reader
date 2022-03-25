@@ -18,7 +18,7 @@ impl Display for TextCompound<'_> {
                     .collect::<Vec<_>>()
                     .join("+")
             ),
-            Self::Abbr(a, b) => write!(f, "Abbr({},{})", a.to_string(), b),
+            Self::Abbr(a, b) => write!(f, "Abbr({},{})", a, b),
             Self::Sup(a) => write!(f, "Sup({})", a),
             Self::Sub(a) => write!(f, "Sub({})", a),
             Self::Small(a) => write!(f, "Small({})", a),

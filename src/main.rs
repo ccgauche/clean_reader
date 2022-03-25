@@ -9,7 +9,7 @@ mod cache;
 mod config;
 mod html_node;
 mod image;
-mod score;
+mod score_implementation;
 mod text_element;
 mod text_parser;
 mod title_extractor;
@@ -20,7 +20,7 @@ use cache::{get_file, get_shortened_from_url};
 
 use crate::{
     bench::Monitor, cache::get_url_for_shortened, config::CONFIG, html_node::HTMLNode,
-    score::best_node, text_element::TextCompound, utils::gen_html_2,
+    score_implementation::choose, text_element::TextCompound, utils::gen_html_2,
 };
 
 /**
@@ -30,13 +30,22 @@ use crate::{
 pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<String> {
     use kuchiki::traits::TendrilSink;
     let mut bench = Monitor::new();
-    let document =
-        kuchiki::parse_html().one(bench.add_fn("http get", || crate::utils::http_get(url))?);
+    let httpstring = bench.add_fn("http get", || crate::utils::http_get(url))?;
+    let httpstring = if let Some(e) = httpstring.find("rel=\"amphtml\"") {
+        let k = &httpstring[(e + "rel=\"amphtml\"".len())..];
+        let e = k.split('"').nth(1).unwrap();
+        println!("Using AMPHTML");
+        bench.add_fn("http get", || crate::utils::http_get(e))?
+    } else {
+        httpstring
+    };
+    let document = kuchiki::parse_html().one(httpstring);
     bench.add("http parse");
     let h = crate::title_extractor::try_extract_data(&document);
     bench.add("data extract");
     let html = HTMLNode::from_node_ref(document)
         .ok_or_else(|| anyhow::anyhow!("Invalid HTMLNode ref generation"))?;
+    std::fs::write(&CONFIG.parsed_debug_file, html.to_string())?;
     bench.add("parse");
     let mut ctx = crate::text_parser::Context {
         bench,
@@ -47,7 +56,7 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
         map: HashMap::new(),
         count: 0,
     };
-    let node = ctx.bench.add_fn("content extraction", || best_node(&html));
+    let node = ctx.bench.add_fn("content extraction", || choose(&html));
     let text = TextCompound::from_node(&mut ctx, node)
         .ok_or_else(|| anyhow::anyhow!("Invalid HTML generation"))?;
     ctx.bench.add("conversion");
@@ -66,21 +75,21 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
 }
 
 #[get("/r/{base64url}")]
-async fn index_r(web::Path(base64url): web::Path<String>) -> HttpResponse {
+async fn index_r(base64url: web::Path<String>) -> HttpResponse {
     let output: Result<String> = try {
-        let url = String::from_utf8(base64::decode(base64url.replace("_", "/"))?)?;
+        let url = String::from_utf8(base64::decode(base64url.replace('_', "/"))?)?;
         get_shortened_from_url(&url)
     };
     match output {
         Ok(e) => HttpResponse::MovedPermanently()
-            .set_header("location", format!("/m/{}", e))
+            .insert_header(("location", format!("/m/{}", e)))
             .body(""),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
 #[get("/m/{short}")]
-async fn index_m(web::Path(short): web::Path<String>) -> HttpResponse {
+async fn index_m(short: web::Path<String>) -> HttpResponse {
     let output: Result<String> = try {
         let url =
             get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;
@@ -93,7 +102,7 @@ async fn index_m(web::Path(short): web::Path<String>) -> HttpResponse {
     }
 }
 #[get("/i/{short}")]
-async fn index_i(web::Path(short): web::Path<String>) -> HttpResponse {
+async fn index_i(short: web::Path<String>) -> HttpResponse {
     let output: Result<Vec<u8>> = try { std::fs::read(format!("cache/images/{}.avif", short))? };
     match output {
         Ok(e) => HttpResponse::Ok().content_type("image/avif").body(e),
@@ -102,7 +111,7 @@ async fn index_i(web::Path(short): web::Path<String>) -> HttpResponse {
 }
 
 #[get("/d/{short}")]
-async fn download(web::Path(short): web::Path<String>) -> HttpResponse {
+async fn download(short: web::Path<String>) -> HttpResponse {
     let output: Result<String> = try {
         let url =
             get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;

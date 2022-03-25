@@ -19,15 +19,13 @@ pub fn try_extract_data(node: &NodeRef) -> ArticleData {
             p.title = TITLE_PROPERTIES
                 .iter()
                 .find(|title| prop == **title)
-                .map(|_| attrs.get("content").map(|x| x.to_string()))
-                .flatten();
+                .and_then(|_| attrs.get("content").map(|x| x.to_string()));
         }
         if p.image.is_none() {
             p.image = IMAGE_PROPERTIES
                 .iter()
                 .find(|image| prop == **image)
-                .map(|_| attrs.get("content").map(|x| x.to_string()))
-                .flatten();
+                .and_then(|_| attrs.get("content").map(|x| x.to_string()));
         }
     }
     p

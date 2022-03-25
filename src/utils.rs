@@ -78,7 +78,7 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
     .collect::<Vec<_>>()
     .into_iter()
     .for_each(|x| {
-        x.join();
+        x.join().unwrap();
     });
     if string.contains("<code>") {
         TEMPLATE
@@ -104,7 +104,7 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
 }
 
 fn before(string: &str, c: char) -> &str {
-    &string[..string.find(c).unwrap_or_else(|| string.len())]
+    &string[..string.find(c).unwrap_or(string.len())]
 }
 
 pub fn get_or_join<'a>(url: &Url, string: &'a str) -> Option<Cow<'a, str>> {
@@ -158,7 +158,8 @@ pub fn http_get(url: &str) -> Result<String> {
         return Err(anyhow!("File too big"));
     }
     let k1 = String::from_utf8_lossy(&k);
-    if k1.contains("<meta charset=\"iso-8859-1\">") {
+    let before = &k1[0..k1.find("</head>").unwrap_or(k1.len())];
+    if before.contains("iso-8859-1") {
         Ok(latin1_to_string(&k))
     } else {
         Ok(k1.to_string())

@@ -6,6 +6,9 @@ use once_cell::sync::Lazy;
 pub struct Config {
     pub enable_debug_text_element: bool,
     pub enable_cache: bool,
+    pub debug_mode: bool,
+    pub parsed_debug_file: String,
+    pub recompress_images: bool,
     pub cache_folder: String,
     pub database_file: String,
     pub text_element_debug_file: String,

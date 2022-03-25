@@ -1,4 +1,9 @@
-use std::{borrow::Borrow, collections::HashMap, fmt::Display};
+use std::{
+    borrow::Borrow,
+    collections::{hash_map::DefaultHasher, HashMap},
+    fmt::Display,
+    hash::{Hash, Hasher},
+};
 
 use kuchiki::NodeRef;
 
@@ -9,7 +14,16 @@ const SKIP_ELEMENTS: &[&str] = &[
     "style", "head",
 ];
 const ALLOW_OVERIDE: &[&str] = &[
-    "div", "span", "section", "main", "article", "document", "body", "html", "figure",
+    "div",
+    "span",
+    "section",
+    "main",
+    "article",
+    "document",
+    "body",
+    "html",
+    "figure",
+    "amp-script",
 ];
 
 const ALLOWED_ALONE: &[&str] = &["br", "hr", "img"];
@@ -27,6 +41,30 @@ pub enum HTMLNode {
 }
 
 impl HTMLNode {
+    pub fn hashcode(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        Hash::hash(self, &mut hasher);
+        hasher.finish()
+    }
+}
+
+impl Hash for HTMLNode {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            HTMLNode::Node(a, _, b) => {
+                a.hash(state);
+                b.hash(state);
+            }
+            HTMLNode::Text(a) => {
+                a.hash(state);
+            }
+        }
+    }
+}
+impl HTMLNode {
+    pub fn is_text(&self) -> bool {
+        matches!(self, HTMLNode::Text(_))
+    }
     pub fn get_text(&self) -> String {
         fn inner(node: &HTMLNode, string: &mut String) {
             match node {
@@ -110,10 +148,30 @@ impl HTMLNode {
                 if tag_names.contains(&a.as_str()) {
                     vec![self]
                 } else {
-                    b.iter().map(|x| x.select(tag_names)).flatten().collect()
+                    b.iter().flat_map(|x| x.select(tag_names)).collect()
                 }
             }
             Self::Text(_a) => Vec::new(),
+        }
+    }
+}
+
+impl HTMLNode {
+    #[allow(dead_code)]
+    pub fn display(&self) -> String {
+        match self {
+            Self::Node(a, _, c) if c.is_empty() => format!("</{}>", a),
+            Self::Node(a, _, c) => format!(
+                "<{}>\n  {}\n</{}>",
+                a,
+                c.iter()
+                    .map(|x| x.display())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+                    .replace('\n', "\n  "),
+                a
+            ),
+            Self::Text(e) => e.to_string(),
         }
     }
 }
@@ -133,7 +191,7 @@ impl Display for HTMLNode {
                     .map(|x| x.to_string())
                     .collect::<Vec<_>>()
                     .join("\n")
-                    .replace("\n", "\n  "),
+                    .replace('\n', "\n  "),
                 a
             ),
             Self::Text(e) => write!(f, "{}", e),

@@ -13,13 +13,13 @@ pub fn display_html(tabs: usize, node: &NodeRef) {
     if let Some(e) = node.as_element() {
         println!(
             "{}<{} {}>",
-            (0..tabs).map(|_| [' ', ' ']).flatten().collect::<String>(),
-            e.name.local.to_string(),
+            (0..tabs).flat_map(|_| [' ', ' ']).collect::<String>(),
+            e.name.local,
             e.attributes
                 .borrow()
                 .map
                 .iter()
-                .map(|(x, y)| { format!("{}={:?}", x.local.to_string(), y.value.to_string()) })
+                .map(|(x, y)| { format!("{}={:?}", x.local, y.value) })
                 .collect::<Vec<String>>()
                 .join(" ")
         );
@@ -28,13 +28,13 @@ pub fn display_html(tabs: usize, node: &NodeRef) {
         }
         println!(
             "{}</{}>",
-            (0..tabs).map(|_| [' ', ' ']).flatten().collect::<String>(),
-            e.name.local.to_string()
+            (0..tabs).flat_map(|_| [' ', ' ']).collect::<String>(),
+            e.name.local
         );
     } else if let Some(e) = node.as_text() {
         println!(
             "{}{:?}",
-            (0..tabs).map(|_| [' ', ' ']).flatten().collect::<String>(),
+            (0..tabs).flat_map(|_| [' ', ' ']).collect::<String>(),
             e.borrow()
         );
     }
