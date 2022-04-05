@@ -68,7 +68,7 @@ impl TextCompound<'_> {
             Self::Array(e) => {
                 matches!(e.get(0), Some(Self::H(_, Header::H1, _)))
             }
-            e => false,
+            _ => false,
         }
     }
     pub fn remove_title(self) -> Self {

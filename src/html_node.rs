@@ -1,9 +1,4 @@
-use std::{
-    borrow::Borrow,
-    collections::{hash_map::DefaultHasher, HashMap},
-    fmt::Display,
-    hash::{Hash, Hasher},
-};
+use std::{borrow::Borrow, collections::HashMap, fmt::Display};
 
 use kuchiki::NodeRef;
 
@@ -42,30 +37,6 @@ pub enum HTMLNode {
 }
 
 impl HTMLNode {
-    pub fn hashcode(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        Hash::hash(self, &mut hasher);
-        hasher.finish()
-    }
-}
-
-impl Hash for HTMLNode {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            HTMLNode::Node(a, _, b) => {
-                a.hash(state);
-                b.hash(state);
-            }
-            HTMLNode::Text(a) => {
-                a.hash(state);
-            }
-        }
-    }
-}
-impl HTMLNode {
-    pub fn is_text(&self) -> bool {
-        matches!(self, HTMLNode::Text(_))
-    }
     pub fn get_node_element(&self) -> Option<&str> {
         match self {
             HTMLNode::Node(a, _, _) => Some(a),

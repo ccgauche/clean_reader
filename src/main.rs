@@ -23,10 +23,7 @@ use crate::{
     cache::get_url_for_shortened,
     config::CONFIG,
     html_node::HTMLNode,
-    score_implementation::{
-        choose,
-        nsi::{self, contains_image, extract_title},
-    },
+    score_implementation::nsi::{self, contains_image, extract_title},
     text_element::TextCompound,
     utils::gen_html_2,
 };
