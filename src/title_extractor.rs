@@ -4,6 +4,7 @@ use kuchiki::NodeRef;
 pub struct ArticleData {
     pub image: Option<String>,
     pub title: Option<String>,
+    pub etitle: Option<String>,
 }
 
 const TITLE_PROPERTIES: &[&str] = &["og:title", "title", "twiter:title", "discord:title"];
@@ -12,6 +13,7 @@ const IMAGE_PROPERTIES: &[&str] = &["og:image", "image", "twiter:image", "discor
 
 pub fn try_extract_data(node: &NodeRef) -> ArticleData {
     let mut p = ArticleData::default();
+    p.etitle = node.select_first("title").ok().map(|x| x.text_contents());
     for k in node.select("meta").unwrap() {
         let attrs = k.attributes.borrow();
         let prop = attrs.get("property").unwrap_or_default();

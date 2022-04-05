@@ -63,6 +63,14 @@ pub enum TextCompound<'a> {
 }
 
 impl TextCompound<'_> {
+    pub fn contains_title(&self) -> bool {
+        match self {
+            Self::Array(e) => {
+                matches!(e.get(0), Some(Self::H(_, Header::H1, _)))
+            }
+            e => false,
+        }
+    }
     pub fn remove_title(self) -> Self {
         match self {
             Self::Array(mut e) => {

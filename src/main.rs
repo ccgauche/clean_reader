@@ -19,8 +19,16 @@ use actix_web::{get, web, App, HttpResponse, HttpServer};
 use cache::{get_file, get_shortened_from_url};
 
 use crate::{
-    bench::Monitor, cache::get_url_for_shortened, config::CONFIG, html_node::HTMLNode,
-    score_implementation::choose, text_element::TextCompound, utils::gen_html_2,
+    bench::Monitor,
+    cache::get_url_for_shortened,
+    config::CONFIG,
+    html_node::HTMLNode,
+    score_implementation::{
+        choose,
+        nsi::{self, contains_image, extract_title},
+    },
+    text_element::TextCompound,
+    utils::gen_html_2,
 };
 
 /**
@@ -56,15 +64,27 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
         map: HashMap::new(),
         count: 0,
     };
-    let node = ctx.bench.add_fn("content extraction", || choose(&html));
+    let node = ctx
+        .bench
+        .add_fn("content extraction", || nsi::choose(&html));
     let text = TextCompound::from_node(&mut ctx, node)
         .ok_or_else(|| anyhow::anyhow!("Invalid HTML generation"))?;
+    if ctx.meta.title.is_none() {
+        ctx.meta.title = extract_title(&html, node).1;
+    }
     ctx.bench.add("conversion");
     let text = if ctx.meta.title.is_some() {
         text.remove_title()
     } else {
         text
     };
+    if ctx.meta.title.is_none() && !text.contains_title() {
+        ctx.meta.title = ctx.meta.etitle.clone();
+    };
+    if contains_image(node).0 {
+        ctx.meta.image = None;
+    }
+    println!("{:?}", ctx.meta.title);
     std::fs::write(&CONFIG.text_element_debug_file, text.to_string()).unwrap();
     let k = gen_html_2(&[text], &ctx);
     ctx.bench.add("html generation");

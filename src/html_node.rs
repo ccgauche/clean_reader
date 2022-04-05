@@ -35,6 +35,7 @@ Node contains three fields:
  - attributes
  - text
 */
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HTMLNode {
     Node(String, HashMap<String, String>, Vec<HTMLNode>),
     Text(String),
@@ -64,6 +65,12 @@ impl Hash for HTMLNode {
 impl HTMLNode {
     pub fn is_text(&self) -> bool {
         matches!(self, HTMLNode::Text(_))
+    }
+    pub fn get_node_element(&self) -> Option<&str> {
+        match self {
+            HTMLNode::Node(a, _, _) => Some(a),
+            HTMLNode::Text(_) => None,
+        }
     }
     pub fn get_text(&self) -> String {
         fn inner(node: &HTMLNode, string: &mut String) {

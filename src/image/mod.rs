@@ -13,7 +13,6 @@ use crate::{
 const IMAGE_EXT: &[&str] = &[".jpg", ".jpeg", ".png", ".webp", ".bmp", ".avif"];
 
 pub fn get_image_url(url: &str) -> (String, Option<JoinHandle<()>>) {
-    println!("Compiling image {}", url);
     if !CONFIG.recompress_images {
         return (url.to_owned(), None);
     }
@@ -77,7 +76,6 @@ fn load_rgba(data: &[u8], premultiplied_alpha: bool) -> anyhow::Result<ImgVec<RG
 }
 
 fn decode(bytes: &[u8]) -> anyhow::Result<ImgVec<RGBA<u8>>> {
-    println!("decoding image");
     let img = Reader::new(Cursor::new(bytes))
         .with_guessed_format()
         .expect("Cursor io never fails")
