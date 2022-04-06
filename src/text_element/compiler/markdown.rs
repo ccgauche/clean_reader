@@ -75,8 +75,9 @@ impl<'a> TextCompound<'a> {
             Self::Quote(a) => Cow::Owned(format!(" > {}", a.markdown()?)),
         };
         if k.trim().is_empty() && !matches!(self, Self::Br) {
-            return None;
+            None
+        } else {
+            Some(k)
         }
-        Some(k)
     }
 }
