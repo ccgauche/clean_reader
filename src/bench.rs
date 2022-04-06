@@ -5,14 +5,16 @@ pub struct Monitor {
     points: Vec<(&'static str, Instant)>,
 }
 
-impl Monitor {
-    pub fn new() -> Self {
+impl Default for Monitor {
+    fn default() -> Self {
         Self {
             start_point: Instant::now(),
             points: Vec::new(),
         }
     }
+}
 
+impl Monitor {
     pub fn print(&self) {
         let mut pos = &self.start_point;
         for (a, b) in &self.points {

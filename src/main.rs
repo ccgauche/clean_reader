@@ -2,6 +2,8 @@
 #![feature(box_syntax)]
 use std::collections::HashMap;
 
+use flame::Library;
+
 use anyhow::*;
 
 mod bench;
@@ -29,26 +31,38 @@ use crate::{
  */
 pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<String> {
     use kuchiki::traits::TendrilSink;
-    let mut bench = Monitor::new();
-    let httpstring = bench.add_fn("http get", || crate::utils::http_get(url))?;
+    let mut library = Library::new();
+    library.start("handle webpage");
+
+    library.start("http get");
+    let httpstring = crate::utils::http_get(url)?;
+    library.end("http get");
+    library.start("amp html");
     let httpstring = if let Some(e) = httpstring.find("rel=\"amphtml\"") {
         let k = &httpstring[(e + "rel=\"amphtml\"".len())..];
         let e = k.split('"').nth(1).unwrap();
         println!("Using AMPHTML");
-        bench.add_fn("http get", || crate::utils::http_get(e))?
+        library.start("amp html fetch");
+        let k = crate::utils::http_get(e)?;
+        library.end("amp html fetch");
+        k
     } else {
         httpstring
     };
+    library.end("amp html");
+    library.start("page processing");
+    library.start("html parse");
     let document = kuchiki::parse_html().one(httpstring);
-    bench.add("http parse");
+    library.end("html parse");
+    library.start("head data extractor");
     let h = crate::title_extractor::try_extract_data(&document);
-    bench.add("data extract");
+    library.end("head data extractor");
+    library.start("html tree cleanup");
     let html = HTMLNode::from_node_ref(document)
         .ok_or_else(|| anyhow::anyhow!("Invalid HTMLNode ref generation"))?;
-    std::fs::write(&CONFIG.parsed_debug_file, html.to_string())?;
-    bench.add("parse");
+    library.end("html tree cleanup");
     let mut ctx = crate::text_parser::Context {
-        bench,
+        library,
         meta: h,
         download: other_download,
         min_id: min_id.to_string(),
@@ -56,30 +70,44 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
         map: HashMap::new(),
         count: 0,
     };
-    let node = ctx.bench.add_fn("content extraction", || choose(&html));
+    ctx.library.start("content extraction");
+    let node = choose(&html);
+    ctx.library.end("content extraction");
+    ctx.library.start("html tree reformating");
     let text = TextCompound::from_node(&mut ctx, node)
         .ok_or_else(|| anyhow::anyhow!("Invalid HTML generation"))?;
+    ctx.library.end("html tree reformating");
     if ctx.meta.title.is_none() {
+        ctx.library.start("title extraction");
         ctx.meta.title = extract_title(&html, node).1;
+        ctx.library.end("title extraction");
     }
-    ctx.bench.add("conversion");
+    ctx.library.start("title elision");
     let text = if ctx.meta.title.is_some() {
         text.remove_title()
     } else {
         text
     };
+    ctx.library.end("title elision");
+    ctx.library.start("title replacement");
     if ctx.meta.title.is_none() && !text.contains_title() {
         ctx.meta.title = ctx.meta.etitle.clone();
     };
+    ctx.library.end("title replacement");
+    ctx.library.start("image duplication check");
     if contains_image(node).0 {
         ctx.meta.image = None;
     }
-    println!("{:?}", ctx.meta.title);
-    std::fs::write(&CONFIG.text_element_debug_file, text.to_string()).unwrap();
+    ctx.library.end("image duplication check");
+    ctx.library.start("html generation");
     let k = gen_html_2(&[text], &ctx);
-    ctx.bench.add("html generation");
+    ctx.library.end("html generation");
+    ctx.library.end("page processing");
+    ctx.library.end("handle webpage");
     if CONFIG.bench_mode {
-        ctx.bench.print()
+        ctx.library
+            .dump(std::fs::File::create("flamegraph.html").unwrap())
+            .unwrap();
     };
     Ok(k)
 }

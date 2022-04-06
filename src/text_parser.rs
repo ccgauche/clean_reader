@@ -1,5 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
+use flame::Library;
 use kuchiki::NodeRef;
 use reqwest::Url;
 
@@ -44,7 +45,7 @@ pub fn display_html(tabs: usize, node: &NodeRef) {
 The context of the parser (The current url for link absolutization and the article data to avoid including multiple time the same title)
 */
 pub struct Context<'a> {
-    pub bench: Monitor,
+    pub library: Library,
     pub url: Url,
     pub download: bool,
     pub min_id: String,

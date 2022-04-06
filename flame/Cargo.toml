@@ -1,0 +1,17 @@
+[package]
+name = "flame"
+version = "0.2.1-pre"
+authors = ["Ty Overby <ty@pre-alpha.com>"]
+license = "MIT/Apache-2.0"
+exclude = ["resources/*.png"]
+
+description = "a profiling / flamegraph library"
+repository = "https://github.com/TyOverby/flame"
+documentation = "https://docs.rs/flame"
+keywords = ["profiling", "flamegraph", "performance", "tool"]
+
+[features]
+
+[dependencies]
+lazy_static = "1.*.*"
+thread-id = "4.*.*"
