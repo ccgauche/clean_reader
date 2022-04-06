@@ -11,10 +11,9 @@ use crate::utils::sha256;
 static URLS: Lazy<DashMap<String, String>> = Lazy::new(|| {
     if let Ok(e) = std::fs::read_to_string(&CONFIG.database_file) {
         e.lines()
-            .filter(|x| x.contains('|'))
-            .map(|x| {
-                let barre = x.find('|').unwrap();
-                (x[0..barre].to_owned(), x[barre + 1..].to_owned())
+            .flat_map(|x| {
+                let barre = x.find('|')?;
+                Some((x[0..barre].to_owned(), x[barre + 1..].to_owned()))
             })
             .collect()
     } else {
@@ -27,10 +26,9 @@ pub fn get_url_for_shortened(shortened: &str) -> Option<String> {
 }
 
 pub fn get_shortened_from_url(url: &str) -> String {
-    let short = sha256(url);
-    let short = &short[..6];
-    if !URLS.contains_key(short) {
-        URLS.insert(short.to_owned(), url.to_owned());
+    let short = sha256(url)[..6].to_owned();
+    if !URLS.contains_key(&short) {
+        URLS.insert(short.clone(), url.to_owned());
         OpenOptions::new()
             .append(true)
             .create(true)
@@ -40,7 +38,7 @@ pub fn get_shortened_from_url(url: &str) -> String {
             .write_all(format!("{}|{}\n", short, url).as_bytes())
             .unwrap();
     }
-    short.to_owned()
+    short
 }
 
 pub fn get_file(url: &str, min_id: &str, download: bool) -> Result<String> {

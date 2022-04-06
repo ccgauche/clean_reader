@@ -37,12 +37,6 @@ pub enum HTMLNode {
 }
 
 impl HTMLNode {
-    pub fn get_node_element(&self) -> Option<&str> {
-        match self {
-            HTMLNode::Node(a, _, _) => Some(a),
-            HTMLNode::Text(_) => None,
-        }
-    }
     pub fn get_text(&self) -> String {
         fn inner(node: &HTMLNode, string: &mut String) {
             match node {
@@ -83,9 +77,8 @@ impl HTMLNode {
                 .flat_map(Self::from_node_ref)
                 .collect::<Vec<_>>();
             if ALLOWED_ALONE.contains(&name) {
-                return Some(Self::Node(name.to_owned(), attrs, childrens));
-            }
-            if childrens.is_empty() {
+                Some(Self::Node(name.to_owned(), attrs, childrens))
+            } else if childrens.is_empty() {
                 None
             } else if ALLOW_OVERIDE.contains(&name)
                 && childrens.len() == 1
@@ -99,37 +92,34 @@ impl HTMLNode {
                 Some(Self::Node(name.to_owned(), attrs, childrens))
             }
         } else if let Some(e) = noderef.as_text() {
-            if e.borrow().trim().is_empty() {
-                None
-            } else {
-                Some(Self::Text(e.borrow().to_owned()))
-            }
+            (!e.borrow().trim().is_empty()).then(|| Self::Text(e.borrow().to_owned()))
         } else {
             None
         }
     }
     pub fn get_node(&self) -> Option<&Vec<HTMLNode>> {
-        match self {
-            Self::Node(_, _, a) => Some(a),
-            Self::Text(_) => None,
+        if let Self::Node(_, _, a) = self {
+            Some(a)
+        } else {
+            None
         }
     }
     pub fn get_tag_name(&self) -> Option<&str> {
-        match self {
-            Self::Node(a, _, _) => Some(a),
-            Self::Text(_) => None,
+        if let Self::Node(a, _, _) = self {
+            Some(a)
+        } else {
+            None
         }
     }
     pub fn select(&self, tag_names: &[&str]) -> Vec<&Self> {
-        match self {
-            Self::Node(a, _, b) => {
-                if tag_names.contains(&a.as_str()) {
-                    vec![self]
-                } else {
-                    b.iter().flat_map(|x| x.select(tag_names)).collect()
-                }
+        if let Self::Node(a, _, b) = self {
+            if tag_names.contains(&a.as_str()) {
+                vec![self]
+            } else {
+                b.iter().flat_map(|x| x.select(tag_names)).collect()
             }
-            Self::Text(_a) => Vec::new(),
+        } else {
+            Vec::new()
         }
     }
 }
