@@ -1,4 +1,4 @@
-use std::thread::JoinHandle;
+use std::{ops::Not, thread::JoinHandle};
 
 use crate::{
     cache::get_shortened_from_url, image::get_image_url, text_element::TextCompound,
@@ -16,7 +16,7 @@ impl<'a> TextCompound<'a> {
                         match string.pop() {
                             Some(' ') => (),
                             Some(e) => string.push(e),
-                            _ => (),
+                            None => (),
                         }
                     }
                 }
@@ -75,14 +75,10 @@ impl<'a> TextCompound<'a> {
                 let (a, b) = get_image_url(a);
                 string.push_str(&a);
                 string.push_str("\">");
-                if let Some(b) = b {
-                    vec![b]
-                } else {
-                    vec![]
-                }
+                b.map(|x| vec![x]).unwrap_or_default()
             }
             Self::H(c, a, b) => {
-                let c: Vec<String> = c
+                let c: Vec<_> = c
                     .iter()
                     .flat_map(|x| ctx.map.get(x.as_ref()))
                     .map(|x| format!("#{}", x))
@@ -91,11 +87,7 @@ impl<'a> TextCompound<'a> {
                 push_html(
                     string,
                     a.to_str(),
-                    if !c.is_empty() {
-                        Some(("id".to_string(), c.join(" ")))
-                    } else {
-                        None
-                    },
+                    c.is_empty().not().then(|| ("id".to_string(), c.join(" "))),
                     b,
                     ctx,
                 )
@@ -113,7 +105,12 @@ impl<'a> TextCompound<'a> {
                         push_simple(string, "tr", |string| {
                             i.iter()
                                 .flat_map(|(a, b)| {
-                                    push_simple_html(string, if *a { "th" } else { "td" }, b, ctx)
+                                    push_simple_html(
+                                        string,
+                                        a.then(|| "th").unwrap_or("td"),
+                                        b,
+                                        ctx,
+                                    )
                                 })
                                 .collect()
                         })

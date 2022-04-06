@@ -31,17 +31,13 @@ pub fn get_img_link_map<'a>(
             && (value.contains('/') || IMAGE_EXTENSIONS.iter().any(|x| value.ends_with(x)))
         {
             if let Some(e) = get_or_join(&url.url, value) {
-                return if url
+                return url
                     .meta
                     .image
                     .as_ref()
-                    .map(|x| x == e.as_ref())
-                    .unwrap_or(false)
-                {
-                    None
-                } else {
-                    Some(e)
-                };
+                    .map(|x| x != e.as_ref())
+                    .unwrap_or(true)
+                    .then(|| e);
             }
         }
     }
@@ -123,7 +119,7 @@ pub fn get_or_join<'a>(url: &Url, string: &'a str) -> Option<Cow<'a, str>> {
 }
 
 fn latin1_to_string(s: &[u8]) -> String {
-    s.iter().map(|&c| c as char).collect()
+    s.iter().copied().map(char::from).collect()
 }
 
 pub fn http_get_bytes(url: &str) -> Result<Vec<u8>> {
