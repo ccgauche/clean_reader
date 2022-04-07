@@ -86,5 +86,5 @@ pub fn dump_html_custom<W: Write>(mut out: W, spans: &[Span]) -> IoResult<()> {
 }
 
 pub fn dump_html<W: Write>(library: &Library, out: W) -> IoResult<()> {
-    dump_html_custom(out, &::spans(library))
+    dump_html_custom(out, &library.spans())
 }

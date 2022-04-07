@@ -8,7 +8,13 @@ use crate::{
 const PONCTUATION: &str = ".,;:!?()[]{}";
 
 impl<'a> TextCompound<'a> {
-    pub fn html(&'a self, ctx: &Context, string: &mut String) -> Vec<JoinHandle<()>> {
+    pub fn html(&'a self, ctx: &mut Context, string: &mut String) -> Vec<JoinHandle<()>> {
+        ctx.library.start(self.name());
+        let k = self._html(ctx, string);
+        ctx.library.end(self.name());
+        k
+    }
+    pub fn _html(&'a self, ctx: &mut Context, string: &mut String) -> Vec<JoinHandle<()>> {
         match self {
             Self::Raw(a) => {
                 if let Some(e) = a.chars().next() {
@@ -126,7 +132,7 @@ fn push_simple_html(
     string: &mut String,
     a: &str,
     html: &TextCompound,
-    ctx: &Context,
+    ctx: &mut Context,
 ) -> Vec<JoinHandle<()>> {
     push_html::<String>(string, a, None, html, ctx)
 }
@@ -167,7 +173,7 @@ fn push_html<T: Into<String>>(
     a: &str,
     attribute: Option<(T, T)>,
     html: &TextCompound,
-    ctx: &Context,
+    ctx: &mut Context,
 ) -> Vec<JoinHandle<()>> {
     push(string, a, attribute, |string| html.html(ctx, string))
 }

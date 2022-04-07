@@ -63,6 +63,28 @@ pub enum TextCompound<'a> {
 }
 
 impl TextCompound<'_> {
+    pub fn name(&self) -> &'static str {
+        match self {
+            TextCompound::Raw(_) => "raw",
+            TextCompound::Link(_, _) => "link",
+            TextCompound::Italic(_) => "italic",
+            TextCompound::Bold(_) => "bold",
+            TextCompound::Underline(_) => "underline",
+            TextCompound::Array(_) => "array",
+            TextCompound::Abbr(_, _) => "abbr",
+            TextCompound::Sup(_) => "sup",
+            TextCompound::Sub(_) => "sub",
+            TextCompound::Small(_) => "small",
+            TextCompound::Code(_) => "code",
+            TextCompound::Img(_) => "img",
+            TextCompound::Br => "br",
+            TextCompound::H(_, _, _) => "h",
+            TextCompound::P(_) => "p",
+            TextCompound::Quote(_) => "quote",
+            TextCompound::Ul(_) => "ul",
+            TextCompound::Table(_) => "table",
+        }
+    }
     pub fn contains_title(&self) -> bool {
         match self {
             Self::Array(e) => {

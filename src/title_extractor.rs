@@ -1,6 +1,6 @@
 use kuchiki::NodeRef;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct ArticleData {
     pub image: Option<String>,
     pub title: Option<String>,

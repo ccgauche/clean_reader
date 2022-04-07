@@ -6,7 +6,6 @@ use flame::Library;
 
 use anyhow::*;
 
-mod bench;
 mod cache;
 mod config;
 mod html_node;
@@ -21,8 +20,8 @@ use actix_web::{get, web, App, HttpResponse, HttpServer};
 use cache::{get_file, get_shortened_from_url};
 
 use crate::{
-    bench::Monitor, cache::get_url_for_shortened, config::CONFIG, html_node::HTMLNode,
-    score_implementation::*, text_element::TextCompound, utils::gen_html_2,
+    cache::get_url_for_shortened, config::CONFIG, html_node::HTMLNode, score_implementation::*,
+    text_element::TextCompound, utils::gen_html_2,
 };
 
 /**
@@ -100,7 +99,7 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
     }
     ctx.library.end("image duplication check");
     ctx.library.start("html generation");
-    let k = gen_html_2(&[text], &ctx);
+    let k = gen_html_2(&[text], &mut ctx);
     ctx.library.end("html generation");
     ctx.library.end("page processing");
     ctx.library.end("handle webpage");

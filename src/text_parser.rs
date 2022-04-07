@@ -4,7 +4,7 @@ use flame::Library;
 use kuchiki::NodeRef;
 use reqwest::Url;
 
-use crate::{bench::Monitor, title_extractor::ArticleData};
+use crate::title_extractor::ArticleData;
 
 /**
 This function is used to debug the html (This displays legacy html from NodeRef)
@@ -44,6 +44,7 @@ pub fn display_html(tabs: usize, node: &NodeRef) {
 /**
 The context of the parser (The current url for link absolutization and the article data to avoid including multiple time the same title)
 */
+#[derive(Clone)]
 pub struct Context<'a> {
     pub library: Library,
     pub url: Url,

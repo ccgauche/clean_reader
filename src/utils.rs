@@ -46,14 +46,15 @@ pub fn get_img_link_map<'a>(
 
 const TEMPLATE: &str = include_str!("../template/template.html");
 
-pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
+pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
+    let ctx1 = ctx.clone();
     let mut string = String::new();
     [
         TextCompound::H(
             vec![Cow::Borrowed("main-title")],
             Header::H1,
             box TextCompound::Raw(
-                ctx.meta
+                ctx1.meta
                     .title
                     .as_ref()
                     .map(|x| Cow::Borrowed(x.as_str()))
@@ -61,7 +62,7 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &Context) -> String {
             ),
         ),
         TextCompound::Img(
-            ctx.meta
+            ctx1.meta
                 .image
                 .as_ref()
                 .map(|x| Cow::Borrowed(x.as_str()))
