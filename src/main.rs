@@ -57,8 +57,7 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
     let h = crate::title_extractor::try_extract_data(&document);
     library.end("head data extractor");
     library.start("html tree cleanup");
-    let html = HTMLNode::from_node_ref(document)
-        .ok_or_else(|| anyhow::anyhow!("Invalid HTMLNode ref generation"))?;
+    let html = HTMLNode::from_node_ref(document)?;
     library.end("html tree cleanup");
     let mut ctx = crate::text_parser::Context {
         library,

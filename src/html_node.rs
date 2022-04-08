@@ -48,7 +48,7 @@ impl HTMLNode {
         inner(self, &mut s);
         s
     }
-    pub fn from_node_ref(noderef: NodeRef) -> Option<HTMLNode> {
+    pub fn from_node_ref(noderef: NodeRef) -> anyhow::Result<HTMLNode> {
         if let Some((name, attrs)) = noderef
             .as_element()
             .map(|e| {
@@ -70,16 +70,19 @@ impl HTMLNode {
         {
             let name = filter_names(&name);
             if SKIP_ELEMENTS.contains(&name) {
-                return None;
+                return Err(anyhow::anyhow!(
+                    "Skipping because {} was found in the root of the tree",
+                    name
+                ));
             }
             let mut childrens = noderef
                 .children()
                 .flat_map(Self::from_node_ref)
                 .collect::<Vec<_>>();
             if ALLOWED_ALONE.contains(&name) {
-                Some(Self::Node(name.to_owned(), attrs, childrens))
+                Ok(Self::Node(name.to_owned(), attrs, childrens))
             } else if childrens.is_empty() {
-                None
+                return Err(anyhow::anyhow!("Skipping because {} has no children", name));
             } else if ALLOW_OVERIDE.contains(&name)
                 && childrens.len() == 1
                 && childrens
@@ -87,14 +90,18 @@ impl HTMLNode {
                     .map(|x| matches!(x, Self::Node(..)))
                     .unwrap_or(false)
             {
-                childrens.pop()
+                childrens
+                    .pop()
+                    .ok_or_else(|| anyhow::anyhow!("{} has no children", name))
             } else {
-                Some(Self::Node(name.to_owned(), attrs, childrens))
+                Ok(Self::Node(name.to_owned(), attrs, childrens))
             }
         } else if let Some(e) = noderef.as_text() {
-            (!e.borrow().trim().is_empty()).then(|| Self::Text(e.borrow().to_owned()))
+            (!e.borrow().trim().is_empty())
+                .then(|| Self::Text(e.borrow().to_owned()))
+                .ok_or_else(|| anyhow::anyhow!("Skipping because text is empty"))
         } else {
-            None
+            Err(anyhow::anyhow!("Found comment instead of node"))
         }
     }
     pub fn get_node(&self) -> Option<&Vec<HTMLNode>> {
