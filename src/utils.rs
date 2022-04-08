@@ -48,8 +48,10 @@ const TEMPLATE: &str = include_str!("../template/template.html");
 
 pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
     let ctx1 = ctx.clone();
-    let mut string = String::new();
-    [
+    ctx.library.start("string alloc");
+    let mut string = String::with_capacity(50_000);
+    ctx.library.end("string alloc");
+    let joinlist = [
         TextCompound::H(
             vec![Cow::Borrowed("main-title")],
             Header::H1,
@@ -72,12 +74,15 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
     .iter()
     .chain(parts.iter())
     .flat_map(|x| x.html(ctx, &mut string))
-    .collect::<Vec<_>>()
-    .into_iter()
-    .for_each(|x| {
+    .collect::<Vec<_>>();
+
+    ctx.library.start("image encoding wait");
+    joinlist.into_iter().for_each(|x| {
         x.join().unwrap();
     });
-    if string.contains("<code>") {
+    ctx.library.end("image encoding wait");
+    ctx.library.start("string generation");
+    let out = if string.contains("<code>") {
         TEMPLATE
         .replace("%%URL%%", ctx.url.as_str())
             .replace("%%start:code%%", "")
@@ -97,7 +102,9 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
                 String::new()
             } else {
                 format!("<quote><a href=\"/d/{}\" download=\"article.html\">Download this article</a></quote>",&ctx.min_id)})
-    }
+    };
+    ctx.library.end("string generation");
+    out
 }
 
 fn before(string: &str, c: char) -> &str {
