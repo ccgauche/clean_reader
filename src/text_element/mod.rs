@@ -63,6 +63,7 @@ pub enum TextCompound<'a> {
 }
 
 impl TextCompound<'_> {
+    #[allow(dead_code)]
     pub fn name(&self) -> &'static str {
         match self {
             TextCompound::Raw(_) => "raw",

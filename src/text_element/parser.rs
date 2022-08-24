@@ -1,7 +1,5 @@
 use std::borrow::Cow;
 
-use flame::Library;
-
 use crate::{
     html_node::HTMLNode,
     text_parser::Context,
@@ -47,18 +45,7 @@ impl<'a> TextCompound<'a> {
         }
     }
     pub fn from_node(ctx: &mut Context<'a>, node: &'a HTMLNode) -> Option<Self> {
-        ctx.library.start(
-            node.get_tag_name()
-                .map(str::to_owned)
-                .unwrap_or_else(|| "text".to_owned()),
-        );
-        let k = Self::_from_node(ctx, node);
-        ctx.library.end(
-            node.get_tag_name()
-                .map(str::to_owned)
-                .unwrap_or_else(|| "text".to_owned()),
-        );
-        k
+        Self::_from_node(ctx, node)
     }
     // TODO: Improve error handling
     pub fn _from_node(ctx: &mut Context<'a>, node: &'a HTMLNode) -> Option<Self> {

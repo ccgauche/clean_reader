@@ -90,35 +90,35 @@ const IS_DIV_LIKE: &[&str] = &[
 
 const IGNORE_ELEMENTS: &[&str] = &["a", "li"];
 
+fn should_be_ignored(string: Option<&str>) -> bool {
+    string
+        .map(|x| IGNORE_ELEMENTS.contains(&x))
+        .unwrap_or(false)
+}
+fn is_container(string: Option<&str>) -> bool {
+    string.map(|x| IS_DIV_LIKE.contains(&x)).unwrap_or(false)
+}
 /**
  * This function is used by the choose function in intern to generate a score to compare nodes.
  */
 fn node_score(node: &HTMLNode) -> usize {
     match node {
-        HTMLNode::Node(ref tag, _, c) => {
-            if IS_DIV_LIKE.contains(&tag.as_str()) {
-                c.iter()
-                    .map(|x| {
-                        if x.get_tag_name()
-                            .map(|x| IGNORE_ELEMENTS.contains(&x))
-                            .unwrap_or(false)
-                        {
-                            0
-                        } else if x
-                            .get_tag_name()
-                            .map(|x| IS_DIV_LIKE.contains(&x))
-                            .unwrap_or(false)
-                        {
-                            node_score(x) / 2
-                        } else {
-                            node_score(x)
-                        }
-                    })
-                    .sum()
+        HTMLNode::Node(tag, _, c) => c
+            .iter()
+            .map(if is_container(Some(tag.as_str())) {
+                |x: &HTMLNode| {
+                    if should_be_ignored(x.get_tag_name()) {
+                        0
+                    } else if is_container(x.get_tag_name()) {
+                        node_score(x) / 2
+                    } else {
+                        node_score(x)
+                    }
+                }
             } else {
-                c.iter().map(node_score).sum()
-            }
-        }
+                node_score
+            })
+            .sum(),
         HTMLNode::Text(text) => (text.len() / 100).max(30),
     }
 }

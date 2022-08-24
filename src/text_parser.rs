@@ -1,6 +1,5 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use flame::Library;
 use kuchiki::NodeRef;
 use reqwest::Url;
 
@@ -46,7 +45,6 @@ The context of the parser (The current url for link absolutization and the artic
 */
 #[derive(Clone)]
 pub struct Context<'a> {
-    pub library: Library,
     pub url: Url,
     pub download: bool,
     pub min_id: String,
