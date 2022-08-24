@@ -33,8 +33,7 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
         let k = &httpstring[(e + "rel=\"amphtml\"".len())..];
         let e = k.split('"').nth(1).unwrap();
         println!("Using AMPHTML");
-        let k = crate::utils::http_get(e)?;
-        k
+        crate::utils::http_get(e)?
     } else {
         httpstring
     };

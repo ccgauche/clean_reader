@@ -46,6 +46,8 @@ pub fn get_img_link_map<'a>(
 
 const TEMPLATE: &str = include_str!("../template/template.html");
 
+// Justification we want to launch all image compression before joining the threads
+#[allow(clippy::needless_collect)]
 pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
     let ctx1 = ctx.clone();
     let mut string = String::with_capacity(50_000);

@@ -13,10 +13,10 @@ impl<'a> TextCompound<'a> {
             TextCompound::Raw(a) => {
                 string.push_str("[0,\"");
                 string.push_str(
-                    &a.replace("\n", "\\n")
-                        .replace("\r", "\\r")
-                        .replace("\t", "\\t")
-                        .replace("\"", "\\\""),
+                    &a.replace('\n', "\\n")
+                        .replace('\r', "\\r")
+                        .replace('\t', "\\t")
+                        .replace('\"', "\\\""),
                 );
                 string.push_str("\"]");
             }
@@ -35,16 +35,16 @@ impl<'a> TextCompound<'a> {
             }
             TextCompound::Underline(_) => (),
             TextCompound::Array(a) => {
-                string.push_str("[");
+                string.push('[');
                 let mut j = false;
                 for x in a {
                     if j {
-                        string.push_str(",");
+                        string.push(',');
                     }
                     j = true;
                     x.json(string);
                 }
-                string.push_str("]");
+                string.push(']');
             }
             TextCompound::Abbr(_, _) => (),
             TextCompound::Sup(_) => (),
