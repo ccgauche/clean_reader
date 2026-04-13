@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Result};
-
 mod cache;
 mod config;
+mod error;
 mod html_node;
 mod image;
 mod score_implementation;
@@ -11,6 +10,8 @@ mod text_element;
 mod text_parser;
 mod title_extractor;
 mod utils;
+
+use crate::error::{Error, Result};
 
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 use cache::{get_file, get_shortened_from_url};
@@ -24,7 +25,7 @@ use crate::{
  * This is the main function which is called when a page is accessed.
  * It will parse the page and return the content as string.
  */
-pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<String> {
+pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> Result<String> {
     use kuchiki::traits::TendrilSink;
     let httpstring = crate::utils::http_get(url)?;
     let httpstring = if let Some(e) = httpstring.find("rel=\"amphtml\"") {
@@ -42,13 +43,12 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
         meta: h,
         download: other_download,
         min_id: min_id.to_string(),
-        url: reqwest::Url::parse(url).expect("Invalid URL"),
+        url: reqwest::Url::parse(url).map_err(|e| Error::InvalidUrl(e.to_string()))?,
         map: HashMap::new(),
         count: 0,
     };
     let node = choose(&html);
-    let text = TextCompound::from_node(&mut ctx, node)
-        .ok_or_else(|| anyhow::anyhow!("Invalid HTML generation"))?;
+    let text = TextCompound::from_node(&mut ctx, node).ok_or(Error::EmptyArticle)?;
     if ctx.meta.title.is_none() {
         ctx.meta.title = extract_title(&html, node).1;
     }
@@ -101,14 +101,13 @@ async fn test(nom: web::Path<String>) -> String {
 async fn index_m(short: web::Path<String>) -> HttpResponse {
     let short = short.into_inner();
     let output: Result<String> = web::block(move || {
-        let url =
-            get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;
+        let url = get_url_for_shortened(&short).ok_or(Error::UnknownShortId)?;
         println!("{}", url);
         get_file(&url, &short, false)
     })
     .await
-    .map_err(anyhow::Error::from)
-    .and_then(|x| x);
+    .map_err(Error::from)
+    .and_then(|r| r);
     match output {
         Ok(e) => HttpResponse::Ok().content_type("text/html").body(e),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -117,7 +116,7 @@ async fn index_m(short: web::Path<String>) -> HttpResponse {
 #[get("/i/{short}")]
 async fn index_i(short: web::Path<String>) -> HttpResponse {
     let output: Result<Vec<u8>> =
-        std::fs::read(format!("cache/images/{}.avif", short)).map_err(anyhow::Error::from);
+        std::fs::read(format!("cache/images/{}.avif", short)).map_err(Error::from);
     match output {
         Ok(e) => HttpResponse::Ok().content_type("image/avif").body(e),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -128,14 +127,13 @@ async fn index_i(short: web::Path<String>) -> HttpResponse {
 async fn download(short: web::Path<String>) -> HttpResponse {
     let short = short.into_inner();
     let output: Result<String> = web::block(move || {
-        let url =
-            get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;
+        let url = get_url_for_shortened(&short).ok_or(Error::UnknownShortId)?;
         println!("{}", url);
         get_file(&url, &short, true)
     })
     .await
-    .map_err(anyhow::Error::from)
-    .and_then(|x| x);
+    .map_err(Error::from)
+    .and_then(|r| r);
     match output {
         Ok(e) => HttpResponse::Ok().content_type("text/html").body(e),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),

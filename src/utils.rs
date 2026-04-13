@@ -2,10 +2,9 @@ use std::{borrow::Cow, collections::HashMap};
 
 use reqwest::Url;
 
-use anyhow::{anyhow, Result};
-
 use crate::{
     config::CONFIG,
+    error::{Error, Result},
     text_element::{Header, TextCompound},
     text_parser::Context,
 };
@@ -126,6 +125,8 @@ fn latin1_to_string(s: &[u8]) -> String {
     s.iter().copied().map(char::from).collect()
 }
 
+const IMAGE_SIZE_LIMIT: u64 = 50_000_000;
+
 pub fn http_get_bytes(url: &str) -> Result<Vec<u8>> {
     let k = reqwest::blocking::ClientBuilder::new().cookie_store(true).build().unwrap().get(url)
     .header("User-Agent","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.164 Safari/537.36")
@@ -133,12 +134,16 @@ pub fn http_get_bytes(url: &str) -> Result<Vec<u8>> {
     .header("Accept-Encoding","gzip, deflate")
     .header("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
     .send()?;
-    if k.content_length().unwrap_or(0) > 50_000_000 {
-        return Err(anyhow!("File too big"));
+    if k.content_length().unwrap_or(0) > IMAGE_SIZE_LIMIT {
+        return Err(Error::ResponseTooLarge {
+            limit: IMAGE_SIZE_LIMIT,
+        });
     }
     let k = k.bytes()?;
-    if k.len() > 50_000_000 {
-        return Err(anyhow!("File too big"));
+    if k.len() as u64 > IMAGE_SIZE_LIMIT {
+        return Err(Error::ResponseTooLarge {
+            limit: IMAGE_SIZE_LIMIT,
+        });
     }
     Ok(k.to_vec())
 }
@@ -151,11 +156,15 @@ pub fn http_get(url: &str) -> Result<String> {
     .header("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
     .send()?;
     if k.content_length().unwrap_or(0) > CONFIG.max_size {
-        return Err(anyhow!("File too big"));
+        return Err(Error::ResponseTooLarge {
+            limit: CONFIG.max_size,
+        });
     }
     let k = k.bytes()?;
-    if k.len() > CONFIG.max_size as usize {
-        return Err(anyhow!("File too big"));
+    if k.len() as u64 > CONFIG.max_size {
+        return Err(Error::ResponseTooLarge {
+            limit: CONFIG.max_size,
+        });
     }
     let k1 = String::from_utf8_lossy(&k);
     let before = &k1[0..k1.find("</head>").unwrap_or(k1.len())];

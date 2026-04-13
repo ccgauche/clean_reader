@@ -2,7 +2,10 @@ use std::{borrow::Borrow, collections::HashMap, fmt::Display};
 
 use kuchiki::NodeRef;
 
-use crate::utils::filter_names;
+use crate::{
+    error::{Error, Result},
+    utils::filter_names,
+};
 
 const SKIP_ELEMENTS: &[&str] = &[
     "button", "input", "form", "nav", "footer", "header", "script", "link", "noscript", "aside",
@@ -48,7 +51,7 @@ impl HTMLNode {
         inner(self, &mut s);
         s
     }
-    pub fn from_node_ref(noderef: NodeRef) -> anyhow::Result<HTMLNode> {
+    pub fn from_node_ref(noderef: NodeRef) -> Result<HTMLNode> {
         if let Some((name, attrs)) = noderef
             .as_element()
             .map(|e| {
@@ -70,10 +73,9 @@ impl HTMLNode {
         {
             let name = filter_names(&name);
             if SKIP_ELEMENTS.contains(&name) {
-                return Err(anyhow::anyhow!(
-                    "Skipping because {} was found in the root of the tree",
-                    name
-                ));
+                return Err(Error::BlockedTag {
+                    tag: name.to_owned(),
+                });
             }
             let mut childrens = noderef
                 .children()
@@ -82,7 +84,9 @@ impl HTMLNode {
             if ALLOWED_ALONE.contains(&name) {
                 Ok(Self::Node(name.to_owned(), attrs, childrens))
             } else if childrens.is_empty() {
-                Err(anyhow::anyhow!("Skipping because {} has no children", name))
+                Err(Error::EmptyNode {
+                    tag: name.to_owned(),
+                })
             } else if ALLOW_OVERIDE.contains(&name)
                 && childrens.len() == 1
                 && childrens
@@ -90,18 +94,18 @@ impl HTMLNode {
                     .map(|x| matches!(x, Self::Node(..)))
                     .unwrap_or(false)
             {
-                childrens
-                    .pop()
-                    .ok_or_else(|| anyhow::anyhow!("{} has no children", name))
+                childrens.pop().ok_or_else(|| Error::EmptyNode {
+                    tag: name.to_owned(),
+                })
             } else {
                 Ok(Self::Node(name.to_owned(), attrs, childrens))
             }
         } else if let Some(e) = noderef.as_text() {
             (!e.borrow().trim().is_empty())
                 .then(|| Self::Text(e.borrow().to_owned()))
-                .ok_or_else(|| anyhow::anyhow!("Skipping because text is empty"))
+                .ok_or(Error::EmptyText)
         } else {
-            Err(anyhow::anyhow!("Found comment instead of node"))
+            Err(Error::CommentNode)
         }
     }
     pub fn get_node(&self) -> Option<&Vec<HTMLNode>> {

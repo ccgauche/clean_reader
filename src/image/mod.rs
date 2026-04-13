@@ -7,6 +7,7 @@ use rgb::RGBA;
 
 use crate::{
     config::CONFIG,
+    error::{Error, Result},
     utils::{self, sha256},
 };
 
@@ -45,18 +46,18 @@ pub fn get_image_url(url: &str) -> (String, Option<JoinHandle<()>>) {
     }
 }
 
-fn encode(image: &[u8]) -> anyhow::Result<Vec<u8>> {
+fn encode(image: &[u8]) -> Result<Vec<u8>> {
     let img = load_rgba(image, false)?;
     let result = Encoder::new()
         .with_quality(50.0)
         .with_alpha_quality(50.0)
         .with_speed(5)
         .encode_rgba(img.as_ref())
-        .map_err(|x: ravif::Error| anyhow::anyhow!("{}", x))?;
+        .map_err(|x: ravif::Error| Error::AvifEncode(x.to_string()))?;
     Ok(result.avif_file)
 }
 
-fn load_rgba(data: &[u8], premultiplied_alpha: bool) -> anyhow::Result<ImgVec<RGBA<u8>>> {
+fn load_rgba(data: &[u8], premultiplied_alpha: bool) -> Result<ImgVec<RGBA<u8>>> {
     let mut img = decode(data)?;
     if premultiplied_alpha {
         img.pixels_mut().for_each(|px| {
@@ -68,7 +69,7 @@ fn load_rgba(data: &[u8], premultiplied_alpha: bool) -> anyhow::Result<ImgVec<RG
     Ok(img)
 }
 
-fn decode(bytes: &[u8]) -> anyhow::Result<ImgVec<RGBA<u8>>> {
+fn decode(bytes: &[u8]) -> Result<ImgVec<RGBA<u8>>> {
     let img = Reader::new(Cursor::new(bytes))
         .with_guessed_format()
         .expect("Cursor io never fails")
@@ -144,6 +145,6 @@ fn decode(bytes: &[u8]) -> anyhow::Result<ImgVec<RGBA<u8>>> {
             img.width() as usize,
             img.height() as usize,
         ),
-        _ => unimplemented!(),
+        _ => return Err(Error::UnsupportedImageFormat),
     })
 }
