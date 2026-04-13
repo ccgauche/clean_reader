@@ -28,11 +28,19 @@ use crate::{
  */
 pub async fn run_v2(url: &str, min_id: &str, other_download: bool) -> Result<String> {
     let httpstring = crate::utils::http_get(url).await?;
-    let httpstring = if let Some(e) = httpstring.find("rel=\"amphtml\"") {
-        let k = &httpstring[(e + "rel=\"amphtml\"".len())..];
-        let e = k.split('"').nth(1).unwrap();
+    // Look for a `rel="amphtml"` link and, if present, fetch the AMP version.
+    // A malformed link or a failed fetch falls back to the original HTML.
+    let amp_target = httpstring
+        .find("rel=\"amphtml\"")
+        .and_then(|i| {
+            httpstring[(i + "rel=\"amphtml\"".len())..]
+                .split('"')
+                .nth(1)
+        })
+        .map(str::to_owned);
+    let httpstring = if let Some(amp_url) = amp_target {
         println!("Using AMPHTML");
-        crate::utils::http_get(e).await?
+        crate::utils::http_get(&amp_url).await.unwrap_or(httpstring)
     } else {
         httpstring
     };
@@ -92,14 +100,14 @@ fn render(
     if contains_image(&html).0 {
         ctx.meta.image = None;
     }
-    Ok(gen_html_2(&[text], &mut ctx))
+    gen_html_2(&[text], &mut ctx)
 }
 
 #[get("/r/{base64url}")]
 async fn index_r(base64url: web::Path<String>) -> HttpResponse {
     let output: Result<String> = (|| {
         let url = String::from_utf8(base64::decode(base64url.replace('_', "/"))?)?;
-        Ok(get_shortened_from_url(&url))
+        get_shortened_from_url(&url)
     })();
     match output {
         Ok(e) => HttpResponse::MovedPermanently()
@@ -111,7 +119,7 @@ async fn index_r(base64url: web::Path<String>) -> HttpResponse {
 
 async fn serve_short(short: String, as_download: bool) -> HttpResponse {
     let output: Result<String> = async {
-        let url = get_url_for_shortened(&short).ok_or(Error::UnknownShortId)?;
+        let url = get_url_for_shortened(&short)?.ok_or(Error::UnknownShortId)?;
         println!("{}", url);
         get_file(&url, &short, as_download).await
     }

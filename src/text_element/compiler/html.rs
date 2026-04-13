@@ -26,24 +26,24 @@ impl<'a> TextCompound<'a> {
                 string.push_str(&html_escape::encode_text(a));
                 vec![]
             }
-            Self::Link(a, b) => push_html(
-                string,
-                "a",
-                Some((
-                    "href".to_owned(),
-                    if !ctx.download
-                        && !b.starts_with("mailto:")
-                        && !b.starts_with('#')
-                        && is_html(b.as_ref())
-                    {
-                        format!("/m/{}", get_shortened_from_url(b))
-                    } else {
-                        b.to_string()
-                    },
-                )),
-                a,
-                ctx,
-            ),
+            Self::Link(a, b) => {
+                let href = if !ctx.download
+                    && !b.starts_with("mailto:")
+                    && !b.starts_with('#')
+                    && is_html(b.as_ref())
+                {
+                    match get_shortened_from_url(b) {
+                        Ok(short) => format!("/m/{}", short),
+                        Err(e) => {
+                            eprintln!("link shorten failed for {}: {}", b, e);
+                            b.to_string()
+                        }
+                    }
+                } else {
+                    b.to_string()
+                };
+                push_html(string, "a", Some(("href".to_owned(), href)), a, ctx)
+            }
             Self::Italic(a) => push_simple_html(string, "i", a, ctx),
             Self::Bold(a) => push_simple_html(string, "b", a, ctx),
             Self::Underline(a) => push_simple_html(string, "u", a, ctx),

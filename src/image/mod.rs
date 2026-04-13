@@ -27,18 +27,21 @@ pub fn get_image_url(url: &str) -> (String, Option<JoinHandle<()>>) {
             let url = url.to_owned();
             let cache_file = cache_file.to_owned();
             let k = std::thread::spawn(move || match utils::http_get_bytes(&url) {
-                Ok(e) => match encode(&e) {
-                    Ok(e) => {
-                        std::fs::create_dir_all(cache_file.parent().unwrap()).unwrap();
-                        std::fs::write(&cache_file, &e).unwrap();
+                Ok(bytes) => match encode(&bytes) {
+                    Ok(avif) => {
+                        if let Some(parent) = cache_file.parent() {
+                            if let Err(e) = std::fs::create_dir_all(parent) {
+                                eprintln!("mkdir {} failed: {}", parent.display(), e);
+                                return;
+                            }
+                        }
+                        if let Err(e) = std::fs::write(&cache_file, &avif) {
+                            eprintln!("write {} failed: {}", cache_file.display(), e);
+                        }
                     }
-                    Err(e) => {
-                        println!("{}", e);
-                    }
+                    Err(e) => eprintln!("encode {}: {}", url, e),
                 },
-                Err(e) => {
-                    println!("{}", e);
-                }
+                Err(e) => eprintln!("fetch {}: {}", url, e),
             });
             return (format!("/i/{}", &hash[..8]), Some(k));
         }

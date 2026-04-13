@@ -28,6 +28,15 @@ pub enum Error {
     #[error("Readability extraction failed: {0}")]
     Readability(String),
 
+    #[error("SQLite error: {0}")]
+    Sqlite(#[from] rusqlite::Error),
+
+    #[error("URL store mutex poisoned")]
+    DbPoisoned,
+
+    #[error("Template render failed: {0}")]
+    Render(String),
+
     #[error("Short id not found in database")]
     UnknownShortId,
 

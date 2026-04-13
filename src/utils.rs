@@ -182,7 +182,7 @@ struct ArticleTemplate<'a> {
 
 // Justification: we want to launch all image compression before joining the threads
 #[allow(clippy::needless_collect)]
-pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
+pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> Result<String> {
     use askama::Template;
 
     let ctx1 = ctx.clone();
@@ -212,8 +212,12 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
     .flat_map(|x| x.html(ctx, &mut body))
     .collect::<Vec<_>>();
 
-    joinlist.into_iter().for_each(|x| {
-        x.join().unwrap();
+    // Image workers run on their own OS threads; a panicked worker should
+    // degrade this request, not kill the server.
+    joinlist.into_iter().for_each(|handle| {
+        if let Err(payload) = handle.join() {
+            eprintln!("image worker panicked: {:?}", payload);
+        }
     });
 
     let download_link = (!ctx.download).then(|| format!("/d/{}", ctx.min_id));
@@ -225,5 +229,5 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
         download_link,
     }
     .render()
-    .expect("article template render failed")
+    .map_err(|e| Error::Render(e.to_string()))
 }
