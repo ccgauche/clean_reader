@@ -27,6 +27,8 @@ use crate::{
  */
 pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> Result<String> {
     use html5ever::tendril::TendrilSink;
+    use std::io::Cursor;
+
     let httpstring = crate::utils::http_get(url)?;
     let httpstring = if let Some(e) = httpstring.find("rel=\"amphtml\"") {
         let k = &httpstring[(e + "rel=\"amphtml\"".len())..];
@@ -36,26 +38,42 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> Result<String> {
     } else {
         httpstring
     };
-    let dom = html5ever::parse_document(
+
+    // First parse: pull og:title, og:image, <title> from the full document.
+    let metadata_dom = html5ever::parse_document(
         markup5ever_rcdom::RcDom::default(),
         html5ever::ParseOpts::default(),
     )
-    .one(httpstring);
-    let h = crate::title_extractor::try_extract_data(&dom.document);
-    let html = HTMLNode::from_handle(&dom.document)?;
+    .one(httpstring.clone());
+    let mut meta = crate::title_extractor::try_extract_data(&metadata_dom.document);
+    drop(metadata_dom);
+
+    // Readability (Firefox reader-view algorithm) picks the article subtree.
+    let parsed_url = reqwest::Url::parse(url).map_err(|e| Error::InvalidUrl(e.to_string()))?;
+    let mut cursor = Cursor::new(httpstring);
+    let product = readability::extractor::extract(&mut cursor, &parsed_url)
+        .map_err(|e| Error::Readability(e.to_string()))?;
+    if meta.title.is_none() && !product.title.is_empty() {
+        meta.title = Some(product.title);
+    }
+
+    // Lower Readability's cleaned HTML into our HTMLNode / TextCompound pipeline.
+    let content_dom = html5ever::parse_document(
+        markup5ever_rcdom::RcDom::default(),
+        html5ever::ParseOpts::default(),
+    )
+    .one(product.content);
+    let html = HTMLNode::from_handle(&content_dom.document)?;
+
     let mut ctx = crate::text_parser::Context {
-        meta: h,
+        meta,
         download: other_download,
         min_id: min_id.to_string(),
-        url: reqwest::Url::parse(url).map_err(|e| Error::InvalidUrl(e.to_string()))?,
+        url: parsed_url,
         map: HashMap::new(),
         count: 0,
     };
-    let node = choose(&html);
-    let text = TextCompound::from_node(&mut ctx, node).ok_or(Error::EmptyArticle)?;
-    if ctx.meta.title.is_none() {
-        ctx.meta.title = extract_title(&html, node).1;
-    }
+    let text = TextCompound::from_node(&mut ctx, &html).ok_or(Error::EmptyArticle)?;
     let text = if ctx.meta.title.is_some() {
         text.remove_title()
     } else {
@@ -75,7 +93,7 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> Result<String> {
     if ctx.meta.title.is_none() && !text.contains_title() {
         ctx.meta.title = ctx.meta.etitle.clone();
     };
-    if contains_image(node).0 {
+    if contains_image(&html).0 {
         ctx.meta.image = None;
     }
     let k = gen_html_2(&[text], &mut ctx);

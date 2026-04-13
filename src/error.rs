@@ -25,6 +25,9 @@ pub enum Error {
     #[error("No article content could be extracted")]
     EmptyArticle,
 
+    #[error("Readability extraction failed: {0}")]
+    Readability(String),
+
     #[error("Short id not found in database")]
     UnknownShortId,
 
