@@ -1,8 +1,6 @@
-#![feature(try_blocks)]
-#![feature(box_syntax)]
 use std::collections::HashMap;
 
-use anyhow::*;
+use anyhow::{anyhow, Result};
 
 mod cache;
 mod config;
@@ -82,10 +80,10 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> anyhow::Result<S
 
 #[get("/r/{base64url}")]
 async fn index_r(base64url: web::Path<String>) -> HttpResponse {
-    let output: Result<String> = try {
+    let output: Result<String> = (|| {
         let url = String::from_utf8(base64::decode(base64url.replace('_', "/"))?)?;
-        get_shortened_from_url(&url)
-    };
+        Ok(get_shortened_from_url(&url))
+    })();
     match output {
         Ok(e) => HttpResponse::MovedPermanently()
             .insert_header(("location", format!("/m/{}", e)))
@@ -101,12 +99,16 @@ async fn test(nom: web::Path<String>) -> String {
 
 #[get("/m/{short}")]
 async fn index_m(short: web::Path<String>) -> HttpResponse {
-    let output: Result<String> = try {
+    let short = short.into_inner();
+    let output: Result<String> = web::block(move || {
         let url =
             get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;
         println!("{}", url);
-        get_file(&url, &short, false)?
-    };
+        get_file(&url, &short, false)
+    })
+    .await
+    .map_err(anyhow::Error::from)
+    .and_then(|x| x);
     match output {
         Ok(e) => HttpResponse::Ok().content_type("text/html").body(e),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -114,7 +116,8 @@ async fn index_m(short: web::Path<String>) -> HttpResponse {
 }
 #[get("/i/{short}")]
 async fn index_i(short: web::Path<String>) -> HttpResponse {
-    let output: Result<Vec<u8>> = try { std::fs::read(format!("cache/images/{}.avif", short))? };
+    let output: Result<Vec<u8>> =
+        std::fs::read(format!("cache/images/{}.avif", short)).map_err(anyhow::Error::from);
     match output {
         Ok(e) => HttpResponse::Ok().content_type("image/avif").body(e),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -123,12 +126,16 @@ async fn index_i(short: web::Path<String>) -> HttpResponse {
 
 #[get("/d/{short}")]
 async fn download(short: web::Path<String>) -> HttpResponse {
-    let output: Result<String> = try {
+    let short = short.into_inner();
+    let output: Result<String> = web::block(move || {
         let url =
             get_url_for_shortened(&short).ok_or_else(|| anyhow!("Can't find url in database"))?;
         println!("{}", url);
-        get_file(&url, &short, true)?
-    };
+        get_file(&url, &short, true)
+    })
+    .await
+    .map_err(anyhow::Error::from)
+    .and_then(|x| x);
     match output {
         Ok(e) => HttpResponse::Ok().content_type("text/html").body(e),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -137,6 +144,11 @@ async fn download(short: web::Path<String>) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let base = format!("http://{}", CONFIG.address);
+    let example_url = "https://en.wikipedia.org/wiki/Computer";
+    let example_encoded = base64::encode(example_url).replace('/', "_");
+    println!("Clean Reader listening on {}", base);
+    println!("Try it: {}/r/{}  ({})", base, example_encoded, example_url);
     HttpServer::new(|| {
         App::new()
             .service(index_r)

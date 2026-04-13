@@ -72,29 +72,29 @@ impl<'a> TextCompound<'a> {
                             })
                             .collect(),
                     )),
-                    "time" => Some(Self::P(box Self::from_array(ctx, c)?)),
+                    "time" => Some(Self::P(Box::new(Self::from_array(ctx, c)?))),
                     "p" => {
                         if b.get("class").map(|x| x.contains("code")).unwrap_or(false) {
                             let mut k = node.get_text();
                             k.push('\n');
                             Some(Self::Code(k))
                         } else {
-                            Some(Self::P(box Self::from_array(ctx, c)?))
+                            Some(Self::P(Box::new(Self::from_array(ctx, c)?)))
                         }
                     }
                     "a" => b
                         .get("href")
                         .map(|x| ctx.absolutize(x))
-                        .and_then(|a| Some(Self::Link(box Self::from_array(ctx, c)?, a)))
+                        .and_then(|a| Some(Self::Link(Box::new(Self::from_array(ctx, c)?), a)))
                         .or_else(|| Self::from_array(ctx, c)),
-                    "u" => Some(Self::Underline(box Self::from_array(ctx, c)?)),
-                    "i" | "em" => Some(Self::Italic(box Self::from_array(ctx, c)?)),
-                    "b" | "strong" => Some(Self::Bold(box Self::from_array(ctx, c)?)),
+                    "u" => Some(Self::Underline(Box::new(Self::from_array(ctx, c)?))),
+                    "i" | "em" => Some(Self::Italic(Box::new(Self::from_array(ctx, c)?))),
+                    "b" | "strong" => Some(Self::Bold(Box::new(Self::from_array(ctx, c)?))),
                     "br" | "wbr" | "hr" => Some(Self::Br),
-                    "small" => Some(Self::Small(box Self::from_array(ctx, c)?)),
+                    "small" => Some(Self::Small(Box::new(Self::from_array(ctx, c)?))),
                     "span" | "q" => Some(Self::from_array(ctx, c)?),
                     "abbr" => Some(Self::Abbr(
-                        box Self::from_array(ctx, c)?,
+                        Box::new(Self::from_array(ctx, c)?),
                         b.get("title")
                             .as_ref()
                             .map(|x| Cow::Borrowed(x.as_str()))
@@ -111,8 +111,8 @@ impl<'a> TextCompound<'a> {
                             })
                             .collect(),
                     )),
-                    "sub" => Some(Self::Sub(box Self::from_array(ctx, c)?)),
-                    "sup" => Some(Self::Sup(box Self::from_array(ctx, c)?)),
+                    "sub" => Some(Self::Sub(Box::new(Self::from_array(ctx, c)?))),
+                    "sup" => Some(Self::Sup(Box::new(Self::from_array(ctx, c)?))),
                     "img" => Some(Self::Img(get_img_link_map(ctx, b)?)),
                     "h1" | "h2" | "h3" | "h4" | "h5" => {
                         let h = Self::from_array(ctx, c)?;
@@ -133,18 +133,20 @@ impl<'a> TextCompound<'a> {
                                 .map(|x| x.split(' ').map(Cow::Borrowed).collect())
                                 .unwrap_or_default(),
                             name.parse().ok()?,
-                            box h,
+                            Box::new(h),
                         ))
                     }
                     "figure" | "figcaption" => {
                         if let Some(HTMLNode::Node(a, _, c)) = c.last() {
                             if a == "figcaption" {
-                                return Some(Self::Quote(box Self::from_array(ctx, c)?));
+                                return Some(Self::Quote(Box::new(Self::from_array(ctx, c)?)));
                             }
                         }
-                        Some(Self::Quote(box Self::from_array(ctx, c)?))
+                        Some(Self::Quote(Box::new(Self::from_array(ctx, c)?)))
                     }
-                    "quote" | "blockquote" => Some(Self::Quote(box Self::from_array(ctx, c)?)),
+                    "quote" | "blockquote" => {
+                        Some(Self::Quote(Box::new(Self::from_array(ctx, c)?)))
+                    }
                     "cite" | "code" | "pre" => Some(Self::Code(node.get_text())),
                     "math" => None, // MATH aren't supported yet
                     e => {

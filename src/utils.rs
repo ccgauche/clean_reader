@@ -2,7 +2,7 @@ use std::{borrow::Cow, collections::HashMap};
 
 use reqwest::Url;
 
-use anyhow::*;
+use anyhow::{anyhow, Result};
 
 use crate::{
     config::CONFIG,
@@ -55,13 +55,13 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> String {
         TextCompound::H(
             vec![Cow::Borrowed("main-title")],
             Header::H1,
-            box TextCompound::Raw(
+            Box::new(TextCompound::Raw(
                 ctx1.meta
                     .title
                     .as_ref()
                     .map(|x| Cow::Borrowed(x.as_str()))
                     .unwrap_or_else(|| Cow::Borrowed("")),
-            ),
+            )),
         ),
         TextCompound::Img(
             ctx1.meta

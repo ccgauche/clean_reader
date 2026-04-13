@@ -1,7 +1,7 @@
 use std::{fs::OpenOptions, io::Write};
 
 use crate::{config::CONFIG, run_v2};
-use anyhow::*;
+use anyhow::Result;
 use dashmap::DashMap;
 
 use once_cell::sync::Lazy;

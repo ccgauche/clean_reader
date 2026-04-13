@@ -2,7 +2,7 @@ use std::{io::Cursor, path::Path, thread::JoinHandle};
 
 use image::io::Reader;
 use imgref::ImgVec;
-use ravif::{cleared_alpha, encode_rgba, Config};
+use ravif::Encoder;
 use rgb::RGBA;
 
 use crate::{
@@ -46,21 +46,14 @@ pub fn get_image_url(url: &str) -> (String, Option<JoinHandle<()>>) {
 }
 
 fn encode(image: &[u8]) -> anyhow::Result<Vec<u8>> {
-    let mut img = load_rgba(image, false)?;
-    img = cleared_alpha(img);
-    let (out_data, _color_size, _alpha_size) = encode_rgba(
-        img.as_ref(),
-        &Config {
-            quality: 50.0,
-            speed: 5,
-            alpha_quality: 50.,
-            premultiplied_alpha: false,
-            color_space: ravif::ColorSpace::YCbCr,
-            threads: 0,
-        },
-    )
-    .map_err(|x| anyhow::anyhow!("{}", x.to_string()))?;
-    Ok(out_data)
+    let img = load_rgba(image, false)?;
+    let result = Encoder::new()
+        .with_quality(50.0)
+        .with_alpha_quality(50.0)
+        .with_speed(5)
+        .encode_rgba(img.as_ref())
+        .map_err(|x: ravif::Error| anyhow::anyhow!("{}", x.to_string()))?;
+    Ok(result.avif_file)
 }
 
 fn load_rgba(data: &[u8], premultiplied_alpha: bool) -> anyhow::Result<ImgVec<RGBA<u8>>> {

@@ -6,16 +6,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-kuchiki = "*"
-reqwest = { version = "*", features = [
+kuchiki = "0.8"
+reqwest = { version = "0.11", features = [
     "blocking",
     "gzip",
     "deflate",
     "cookies",
     "rustls-tls",
 ], default-features = false }
-serde = { version = "*", features = ["derive"] }
-serde_json = "*"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 toml = "0.5.8"
 actix-web = "4.0.1"
 hex = "0.4.3"
@@ -32,7 +32,7 @@ flame = { path = "flame" }
 
 # Image related
 
-ravif = { git = "https://github.com/kornelski/cavif-rs" }
+ravif = "0.11"
 rayon = "1.5.1"
 rgb = "0.8.29"
 imgref = "1.9.1"
