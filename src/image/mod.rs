@@ -1,4 +1,4 @@
-use std::{io::Cursor, path::Path, thread::JoinHandle};
+use std::{io::Cursor, path::Path, sync::mpsc::Receiver};
 
 use image::io::Reader;
 use imgref::ImgVec;
@@ -6,14 +6,22 @@ use ravif::Encoder;
 use rgb::RGBA;
 
 use crate::{
+    actors,
     config::CONFIG,
     error::{Error, Result},
-    utils::{self, sha256},
+    utils::sha256,
 };
 
 const IMAGE_EXT: &[&str] = &[".jpg", ".jpeg", ".png", ".webp", ".bmp", ".avif"];
 
-pub fn get_image_url(url: &str) -> (String, Option<JoinHandle<()>>) {
+/// Ticket returned by `get_image_url` while an image re-encode is in flight.
+/// The template renderer waits on it at the end of `gen_html_2` to ensure the
+/// `/i/{hash}.avif` file is on disk before the response is sent.
+pub struct ImageTicket {
+    pub done: Receiver<()>,
+}
+
+pub fn get_image_url(url: &str) -> (String, Option<ImageTicket>) {
     if !CONFIG.recompress_images {
         return (url.to_owned(), None);
     }
@@ -21,35 +29,17 @@ pub fn get_image_url(url: &str) -> (String, Option<JoinHandle<()>>) {
     let path = format!("{}/images/{}.avif", CONFIG.cache_folder, &hash[..8]);
     let cache_file = Path::new(&path);
     if cache_file.exists() {
-        (format!("/i/{}", &hash[..8]), None)
-    } else {
-        if IMAGE_EXT.iter().any(|x| url.contains(x)) {
-            let url = url.to_owned();
-            let cache_file = cache_file.to_owned();
-            let k = std::thread::spawn(move || match utils::http_get_bytes(&url) {
-                Ok(bytes) => match encode(&bytes) {
-                    Ok(avif) => {
-                        if let Some(parent) = cache_file.parent() {
-                            if let Err(e) = std::fs::create_dir_all(parent) {
-                                eprintln!("mkdir {} failed: {}", parent.display(), e);
-                                return;
-                            }
-                        }
-                        if let Err(e) = std::fs::write(&cache_file, &avif) {
-                            eprintln!("write {} failed: {}", cache_file.display(), e);
-                        }
-                    }
-                    Err(e) => eprintln!("encode {}: {}", url, e),
-                },
-                Err(e) => eprintln!("fetch {}: {}", url, e),
-            });
-            return (format!("/i/{}", &hash[..8]), Some(k));
-        }
-        (url.to_owned(), None)
+        return (format!("/i/{}", &hash[..8]), None);
     }
+    if IMAGE_EXT.iter().any(|x| url.contains(x)) {
+        if let Some(ticket) = actors::encode_image(url.to_owned(), cache_file.to_owned()) {
+            return (format!("/i/{}", &hash[..8]), Some(ticket));
+        }
+    }
+    (url.to_owned(), None)
 }
 
-fn encode(image: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn encode_avif(image: &[u8]) -> Result<Vec<u8>> {
     let img = load_rgba(image, false)?;
     let result = Encoder::new()
         .with_quality(50.0)

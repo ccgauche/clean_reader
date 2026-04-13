@@ -4,9 +4,9 @@ use once_cell::sync::Lazy;
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::{
+    actors,
     config::CONFIG,
     error::{Error, Result},
-    run_v2,
     utils::sha256,
 };
 
@@ -57,11 +57,11 @@ pub async fn get_file(url: &str, min_id: &str, download: bool) -> Result<String>
         if let Ok(e) = tokio::fs::read_to_string(&cache_file).await {
             Ok(e)
         } else {
-            let html = run_v2(url, min_id, download).await?;
+            let html = actors::render_page(url, min_id, download).await?;
             let _ = tokio::fs::write(cache_file, &html).await;
             Ok(html)
         }
     } else {
-        run_v2(url, min_id, download).await
+        actors::render_page(url, min_id, download).await
     }
 }

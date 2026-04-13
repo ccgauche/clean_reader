@@ -1,17 +1,20 @@
-use std::{ops::Not, thread::JoinHandle};
+use std::ops::Not;
 
 use crate::{
-    cache::get_shortened_from_url, image::get_image_url, text_element::TextCompound,
-    text_parser::Context, utils::is_html,
+    cache::get_shortened_from_url,
+    image::{get_image_url, ImageTicket},
+    text_element::TextCompound,
+    text_parser::Context,
+    utils::is_html,
 };
 
 const PONCTUATION: &str = ".,;:!?()[]{}";
 
 impl<'a> TextCompound<'a> {
-    pub fn html(&'a self, ctx: &mut Context, string: &mut String) -> Vec<JoinHandle<()>> {
+    pub fn html(&'a self, ctx: &mut Context, string: &mut String) -> Vec<ImageTicket> {
         self._html(ctx, string)
     }
-    pub fn _html(&'a self, ctx: &mut Context, string: &mut String) -> Vec<JoinHandle<()>> {
+    pub fn _html(&'a self, ctx: &mut Context, string: &mut String) -> Vec<ImageTicket> {
         match self {
             Self::Raw(a) => {
                 if let Some(e) = a.chars().next() {
@@ -130,15 +133,15 @@ fn push_simple_html(
     a: &str,
     html: &TextCompound,
     ctx: &mut Context,
-) -> Vec<JoinHandle<()>> {
+) -> Vec<ImageTicket> {
     push_html::<String>(string, a, None, html, ctx)
 }
 
 fn push_simple(
     string: &mut String,
     a: &str,
-    f: impl FnOnce(&mut String) -> Vec<JoinHandle<()>>,
-) -> Vec<JoinHandle<()>> {
+    f: impl FnOnce(&mut String) -> Vec<ImageTicket>,
+) -> Vec<ImageTicket> {
     push(string, a, None as Option<(String, String)>, f)
 }
 
@@ -171,6 +174,6 @@ fn push_html<T: Into<String>>(
     attribute: Option<(T, T)>,
     html: &TextCompound,
     ctx: &mut Context,
-) -> Vec<JoinHandle<()>> {
+) -> Vec<ImageTicket> {
     push(string, a, attribute, |string| html.html(ctx, string))
 }

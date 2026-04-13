@@ -212,13 +212,11 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> Result<String> {
     .flat_map(|x| x.html(ctx, &mut body))
     .collect::<Vec<_>>();
 
-    // Image workers run on their own OS threads; a panicked worker should
-    // degrade this request, not kill the server.
-    joinlist.into_iter().for_each(|handle| {
-        if let Err(payload) = handle.join() {
-            eprintln!("image worker panicked: {:?}", payload);
-        }
-    });
+    // Image workers run via the ImageActor on their own OS threads. Wait on
+    // each ticket so the `/i/{hash}.avif` cache files are on disk before the
+    // HTTP response goes out (`wait_for_image` bounds the wait with a
+    // timeout so a stuck worker can't hold the response open forever).
+    joinlist.into_iter().for_each(crate::actors::wait_for_image);
 
     let download_link = (!ctx.download).then(|| format!("/d/{}", ctx.min_id));
     let has_code = body.contains("<code>");
