@@ -8,60 +8,6 @@ use crate::{
 const PONCTUATION: &str = ".,;:!?()[]{}";
 
 impl<'a> TextCompound<'a> {
-    pub fn json(&'a self, string: &mut String) {
-        match self {
-            TextCompound::Raw(a) => {
-                string.push_str("[0,\"");
-                string.push_str(
-                    &a.replace('\n', "\\n")
-                        .replace('\r', "\\r")
-                        .replace('\t', "\\t")
-                        .replace('\"', "\\\""),
-                );
-                string.push_str("\"]");
-            }
-            TextCompound::Link(a, b) => {
-                string.push_str("[2,[");
-                a.json(string);
-                string.push_str("],\"");
-                string.push_str(b.as_ref());
-                string.push_str("\"]");
-            }
-            TextCompound::Italic(_) => (),
-            TextCompound::Bold(a) => {
-                string.push_str("[1,[");
-                a.json(string);
-                string.push_str("]]");
-            }
-            TextCompound::Underline(_) => (),
-            TextCompound::Array(a) => {
-                string.push('[');
-                let mut j = false;
-                for x in a {
-                    if j {
-                        string.push(',');
-                    }
-                    j = true;
-                    x.json(string);
-                }
-                string.push(']');
-            }
-            TextCompound::Abbr(_, _) => (),
-            TextCompound::Sup(_) => (),
-            TextCompound::Sub(_) => (),
-            TextCompound::Small(_) => (),
-            TextCompound::Code(_) => (),
-            TextCompound::Img(_) => (),
-            TextCompound::Br => (),
-            TextCompound::H(_, _, _) => (),
-            TextCompound::P(t) => {
-                t.json(string);
-            }
-            TextCompound::Quote(_) => (),
-            TextCompound::Ul(_) => (),
-            TextCompound::Table(_) => (),
-        }
-    }
     pub fn html(&'a self, ctx: &mut Context, string: &mut String) -> Vec<JoinHandle<()>> {
         self._html(ctx, string)
     }

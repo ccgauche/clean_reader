@@ -1,13 +1,15 @@
 {
+  "manifest_version": 3,
   "name": "Clean Reader",
-  "version": "1.0",
+  "version": "1.1",
+  "description": "Clean Reader by ccgauche | Clean reader make for a clean, simpler, greener web.",
   "icons": {
     "88": "icons.png"
   },
-  "description": "Clean Reader by ccgauche | Clean reader make for a clean, simpler, greener web.",
-  "permissions": ["<all_urls>", "contextMenus", "storage"],
+  "permissions": ["contextMenus", "storage"],
+  "host_permissions": ["<all_urls>"],
   "background": {
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -15,8 +17,7 @@
       "js": ["cr.js"]
     }
   ],
-  "browser_action": {
+  "action": {
     "default_popup": "popup.html"
-  },
-  "manifest_version": 2
+  }
 }

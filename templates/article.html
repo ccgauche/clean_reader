@@ -50,7 +50,6 @@
         overflow-x: auto;
         max-width: 100%;
         width: max-content;
-        display: block;
       }
       table th,
       table td {
@@ -61,27 +60,27 @@
         background-color: #fff1;
       }
     </style>
-    %%start:code%%
+    {% if has_code %}
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.2.0/styles/atom-one-dark.min.css"
     />
     <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.2.0/highlight.min.js"></script>
-    %%end%%
+    {% endif %}
   </head>
 
   <body>
     <div class="container" id="ctn">
       <quote
-        ><a href="%%URL%%">Official website</a
+        ><a href="{{ url }}">Official website</a
         ><a onclick="i()" href="#" style="float: right">Invert colors</a></quote
-      >%%CODE%%%%DOWNLOAD%%
+      >{{ code|safe }}{% if let Some(link) = download_link %}<quote><a href="{{ link }}" download="article.html">Download this article</a></quote>{% endif %}
     </div>
-    %%start:code%%
+    {% if has_code %}
     <script>
       hljs.highlightAll();
     </script>
-    %%end%%
+    {% endif %}
     <script>
       let i = () => {
         let k = document.getElementById("ctn");

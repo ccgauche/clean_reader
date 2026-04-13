@@ -176,3 +176,56 @@ impl Display for HTMLNode {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use html5ever::tendril::TendrilSink;
+
+    fn parse(html: &str) -> HTMLNode {
+        let dom = html5ever::parse_document(
+            markup5ever_rcdom::RcDom::default(),
+            html5ever::ParseOpts::default(),
+        )
+        .one(html);
+        HTMLNode::from_handle(&dom.document).expect("parse")
+    }
+
+    fn tags(node: &HTMLNode) -> Vec<String> {
+        let mut out = Vec::new();
+        fn walk(node: &HTMLNode, out: &mut Vec<String>) {
+            if let HTMLNode::Node(name, _, children) = node {
+                out.push(name.clone());
+                for c in children {
+                    walk(c, out);
+                }
+            }
+        }
+        walk(node, &mut out);
+        out
+    }
+
+    #[test]
+    fn strips_blocked_tags() {
+        // <script> is in SKIP_ELEMENTS — should never appear in the result tree.
+        let node = parse("<html><body><p>hi</p><script>alert(1)</script></body></html>");
+        assert!(!tags(&node).iter().any(|t| t == "script"));
+    }
+
+    #[test]
+    fn empty_text_is_dropped() {
+        // A whitespace-only `<p>` should prune away, but adjacent real content survives.
+        let node = parse("<html><body><p>   </p><p>real</p></body></html>");
+        let ts = tags(&node);
+        // Exactly one <p> should remain — the one with real text.
+        assert_eq!(ts.iter().filter(|t| t.as_str() == "p").count(), 1);
+    }
+
+    #[test]
+    fn preserves_heading_and_link() {
+        let node = parse("<html><body><h1>Title</h1><a href=\"/x\">link</a></body></html>");
+        let ts = tags(&node);
+        assert!(ts.contains(&"h1".to_string()));
+        assert!(ts.contains(&"a".to_string()));
+    }
+}
