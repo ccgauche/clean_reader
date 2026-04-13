@@ -1,44 +1,8 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use kuchiki::NodeRef;
 use reqwest::Url;
 
 use crate::title_extractor::ArticleData;
-
-/**
-This function is used to debug the html (This displays legacy html from NodeRef)
-*/
-#[allow(unused)]
-pub fn display_html(tabs: usize, node: &NodeRef) {
-    if let Some(e) = node.as_element() {
-        println!(
-            "{}<{} {}>",
-            (0..tabs).flat_map(|_| [' ', ' ']).collect::<String>(),
-            e.name.local,
-            e.attributes
-                .borrow()
-                .map
-                .iter()
-                .map(|(x, y)| { format!("{}={:?}", x.local, y.value) })
-                .collect::<Vec<String>>()
-                .join(" ")
-        );
-        for i in node.children() {
-            display_html(tabs + 1, &i);
-        }
-        println!(
-            "{}</{}>",
-            (0..tabs).flat_map(|_| [' ', ' ']).collect::<String>(),
-            e.name.local
-        );
-    } else if let Some(e) = node.as_text() {
-        println!(
-            "{}{:?}",
-            (0..tabs).flat_map(|_| [' ', ' ']).collect::<String>(),
-            e.borrow()
-        );
-    }
-}
 
 /**
 The context of the parser (The current url for link absolutization and the article data to avoid including multiple time the same title)

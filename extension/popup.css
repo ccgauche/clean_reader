@@ -1,13 +1,31 @@
+body {
+    font: 13px -apple-system, Segoe UI, Arial, sans-serif;
+    padding: 10px;
+    min-width: 260px;
+}
+
+label {
+    display: block;
+    margin-top: 6px;
+    margin-bottom: 2px;
+    font-weight: bold;
+}
+
+input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 6px;
+}
+
 button {
-    height: 30px;
-    width: 30px;
-    outline: none;
-    margin: 10px;
-    border: none;
-    border-radius: 2px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border: 1px solid #888;
+    background: #f3f3f3;
+    border-radius: 3px;
+    cursor: pointer;
 }
 
 button.current {
-    box-shadow: 0 0 0 2px white,
-        0 0 0 4px black;
+    box-shadow: 0 0 0 2px white, 0 0 0 4px black;
 }

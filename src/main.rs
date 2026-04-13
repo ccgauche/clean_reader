@@ -26,7 +26,7 @@ use crate::{
  * It will parse the page and return the content as string.
  */
 pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> Result<String> {
-    use kuchiki::traits::TendrilSink;
+    use html5ever::tendril::TendrilSink;
     let httpstring = crate::utils::http_get(url)?;
     let httpstring = if let Some(e) = httpstring.find("rel=\"amphtml\"") {
         let k = &httpstring[(e + "rel=\"amphtml\"".len())..];
@@ -36,9 +36,13 @@ pub fn run_v2(url: &str, min_id: &str, other_download: bool) -> Result<String> {
     } else {
         httpstring
     };
-    let document = kuchiki::parse_html().one(httpstring);
-    let h = crate::title_extractor::try_extract_data(&document);
-    let html = HTMLNode::from_node_ref(document)?;
+    let dom = html5ever::parse_document(
+        markup5ever_rcdom::RcDom::default(),
+        html5ever::ParseOpts::default(),
+    )
+    .one(httpstring);
+    let h = crate::title_extractor::try_extract_data(&dom.document);
+    let html = HTMLNode::from_handle(&dom.document)?;
     let mut ctx = crate::text_parser::Context {
         meta: h,
         download: other_download,

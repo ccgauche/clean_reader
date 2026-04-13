@@ -6,7 +6,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-kuchiki = "0.8"
+html5ever = "0.26"
+markup5ever_rcdom = "0.2"
 reqwest = { version = "0.11", features = [
     "blocking",
     "gzip",

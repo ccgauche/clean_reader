@@ -1,6 +1,6 @@
-use std::{borrow::Borrow, collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display};
 
-use kuchiki::NodeRef;
+use markup5ever_rcdom::{Handle, NodeData};
 
 use crate::{
     error::{Error, Result},
@@ -51,61 +51,60 @@ impl HTMLNode {
         inner(self, &mut s);
         s
     }
-    pub fn from_node_ref(noderef: NodeRef) -> Result<HTMLNode> {
-        if let Some((name, attrs)) = noderef
-            .as_element()
-            .map(|e| {
-                (
-                    e.name.local.to_string(),
-                    e.attributes
-                        .borrow()
-                        .map
-                        .iter()
-                        .map(|(x, y)| (x.local.borrow().to_string(), y.value.to_owned()))
-                        .collect(),
-                )
+    pub fn from_handle(handle: &Handle) -> Result<HTMLNode> {
+        let (name, attrs): (String, HashMap<String, String>) = match &handle.data {
+            NodeData::Document => ("document".to_owned(), HashMap::new()),
+            NodeData::Element { name, attrs, .. } => (
+                name.local.to_string(),
+                attrs
+                    .borrow()
+                    .iter()
+                    .map(|a| (a.name.local.to_string(), a.value.to_string()))
+                    .collect(),
+            ),
+            NodeData::Text { contents } => {
+                let text = contents.borrow();
+                return if text.trim().is_empty() {
+                    Err(Error::EmptyText)
+                } else {
+                    Ok(Self::Text(text.to_string()))
+                };
+            }
+            NodeData::Comment { .. }
+            | NodeData::Doctype { .. }
+            | NodeData::ProcessingInstruction { .. } => return Err(Error::CommentNode),
+        };
+
+        let name = filter_names(&name);
+        if SKIP_ELEMENTS.contains(&name) {
+            return Err(Error::BlockedTag {
+                tag: name.to_owned(),
+            });
+        }
+        let mut childrens = handle
+            .children
+            .borrow()
+            .iter()
+            .flat_map(Self::from_handle)
+            .collect::<Vec<_>>();
+        if ALLOWED_ALONE.contains(&name) {
+            Ok(Self::Node(name.to_owned(), attrs, childrens))
+        } else if childrens.is_empty() {
+            Err(Error::EmptyNode {
+                tag: name.to_owned(),
             })
-            .or_else(|| {
-                noderef
-                    .as_document()
-                    .map(|_| ("document".to_owned(), HashMap::new()))
-            })
+        } else if ALLOW_OVERIDE.contains(&name)
+            && childrens.len() == 1
+            && childrens
+                .last()
+                .map(|x| matches!(x, Self::Node(..)))
+                .unwrap_or(false)
         {
-            let name = filter_names(&name);
-            if SKIP_ELEMENTS.contains(&name) {
-                return Err(Error::BlockedTag {
-                    tag: name.to_owned(),
-                });
-            }
-            let mut childrens = noderef
-                .children()
-                .flat_map(Self::from_node_ref)
-                .collect::<Vec<_>>();
-            if ALLOWED_ALONE.contains(&name) {
-                Ok(Self::Node(name.to_owned(), attrs, childrens))
-            } else if childrens.is_empty() {
-                Err(Error::EmptyNode {
-                    tag: name.to_owned(),
-                })
-            } else if ALLOW_OVERIDE.contains(&name)
-                && childrens.len() == 1
-                && childrens
-                    .last()
-                    .map(|x| matches!(x, Self::Node(..)))
-                    .unwrap_or(false)
-            {
-                childrens.pop().ok_or_else(|| Error::EmptyNode {
-                    tag: name.to_owned(),
-                })
-            } else {
-                Ok(Self::Node(name.to_owned(), attrs, childrens))
-            }
-        } else if let Some(e) = noderef.as_text() {
-            (!e.borrow().trim().is_empty())
-                .then(|| Self::Text(e.borrow().to_owned()))
-                .ok_or(Error::EmptyText)
+            childrens.pop().ok_or_else(|| Error::EmptyNode {
+                tag: name.to_owned(),
+            })
         } else {
-            Err(Error::CommentNode)
+            Ok(Self::Node(name.to_owned(), attrs, childrens))
         }
     }
     pub fn get_node(&self) -> Option<&Vec<HTMLNode>> {

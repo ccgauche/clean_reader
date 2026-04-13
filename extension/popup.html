@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="button.css" />
+    <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
+    <label for="svurl">Server URL</label>
     <input id="svurl" type="text" />
+    <label for="shortcut">Shortcut</label>
+    <input id="shortcut" type="text" readonly placeholder="Click then press keys" />
+    <button id="reset_shortcut" type="button">Reset</button>
     <script src="popup.js"></script>
   </body>
 </html>
