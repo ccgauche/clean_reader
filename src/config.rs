@@ -2,6 +2,7 @@ use std::path::Path;
 
 use once_cell::sync::Lazy;
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize)]
 pub struct Config {
     pub enable_debug_text_element: bool,

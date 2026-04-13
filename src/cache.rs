@@ -32,7 +32,6 @@ pub fn get_shortened_from_url(url: &str) -> String {
         OpenOptions::new()
             .append(true)
             .create(true)
-            .write(true)
             .open(&CONFIG.database_file)
             .unwrap()
             .write_all(format!("{}|{}\n", short, url).as_bytes())

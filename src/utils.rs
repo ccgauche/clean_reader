@@ -13,7 +13,7 @@ use crate::{
 const NAMES_TO_FILTER: &[&str] = &["img", "source"];
 
 pub fn filter_names(string: &str) -> &str {
-    *NAMES_TO_FILTER
+    NAMES_TO_FILTER
         .iter()
         .find(|x| string.contains(*x))
         .unwrap_or(&string)
@@ -37,7 +37,7 @@ pub fn get_img_link_map<'a>(
                     .as_ref()
                     .map(|x| x != e.as_ref())
                     .unwrap_or(true)
-                    .then(|| e);
+                    .then_some(e);
             }
         }
     }

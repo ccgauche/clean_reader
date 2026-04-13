@@ -101,7 +101,7 @@ impl<'a> TextCompound<'a> {
             Self::Italic(a) => push_simple_html(string, "i", a, ctx),
             Self::Bold(a) => push_simple_html(string, "b", a, ctx),
             Self::Underline(a) => push_simple_html(string, "u", a, ctx),
-            Self::Array(a) => return a.iter().flat_map(|x| x.html(ctx, string)).collect(),
+            Self::Array(a) => a.iter().flat_map(|x| x.html(ctx, string)).collect(),
             Self::Abbr(a, b) => push_html(string, "small", Some(("title", b.as_ref())), a, ctx),
             Self::Sup(a) => push_simple_html(string, "sup", a, ctx),
             Self::Sub(a) => push_simple_html(string, "sub", a, ctx),

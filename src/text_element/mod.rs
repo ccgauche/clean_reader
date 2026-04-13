@@ -89,7 +89,7 @@ impl TextCompound<'_> {
     pub fn contains_title(&self) -> bool {
         match self {
             Self::Array(e) => {
-                matches!(e.get(0), Some(Self::H(_, Header::H1, _)))
+                matches!(e.first(), Some(Self::H(_, Header::H1, _)))
             }
             _ => false,
         }
@@ -97,7 +97,7 @@ impl TextCompound<'_> {
     pub fn remove_title(self) -> Self {
         match self {
             Self::Array(mut e) => {
-                if matches!(e.get(0), Some(Self::H(_, Header::H1, _))) {
+                if matches!(e.first(), Some(Self::H(_, Header::H1, _))) {
                     e.remove(0);
                 }
                 Self::Array(e)

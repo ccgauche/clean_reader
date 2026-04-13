@@ -52,7 +52,7 @@ fn encode(image: &[u8]) -> anyhow::Result<Vec<u8>> {
         .with_alpha_quality(50.0)
         .with_speed(5)
         .encode_rgba(img.as_ref())
-        .map_err(|x: ravif::Error| anyhow::anyhow!("{}", x.to_string()))?;
+        .map_err(|x: ravif::Error| anyhow::anyhow!("{}", x))?;
     Ok(result.avif_file)
 }
 

@@ -82,7 +82,7 @@ impl HTMLNode {
             if ALLOWED_ALONE.contains(&name) {
                 Ok(Self::Node(name.to_owned(), attrs, childrens))
             } else if childrens.is_empty() {
-                return Err(anyhow::anyhow!("Skipping because {} has no children", name));
+                Err(anyhow::anyhow!("Skipping because {} has no children", name))
             } else if ALLOW_OVERIDE.contains(&name)
                 && childrens.len() == 1
                 && childrens
