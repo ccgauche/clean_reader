@@ -61,60 +61,64 @@ impl HTMLNode {
     }
 
     pub fn from_handle(handle: &Handle) -> Result<HTMLNode> {
-        let (name, attrs): (String, HashMap<String, String>) = match &handle.data {
-            NodeData::Document => ("document".to_owned(), HashMap::new()),
+        // Text nodes short-circuit: no pruning rules apply.
+        if let NodeData::Text { contents } = &handle.data {
+            let text = contents.borrow();
+            return if text.trim().is_empty() {
+                Err(Error::EmptyText)
+            } else {
+                Ok(Self::Text(text.to_string()))
+            };
+        }
+
+        let (raw_tag, attrs) = match &handle.data {
+            NodeData::Document => (String::from("document"), HashMap::new()),
             NodeData::Element { name, attrs, .. } => (
                 name.local.to_string(),
                 attrs
                     .borrow()
                     .iter()
                     .map(|a| (a.name.local.to_string(), a.value.to_string()))
-                    .collect(),
+                    .collect::<HashMap<_, _>>(),
             ),
-            NodeData::Text { contents } => {
-                let text = contents.borrow();
-                return if text.trim().is_empty() {
-                    Err(Error::EmptyText)
-                } else {
-                    Ok(Self::Text(text.to_string()))
-                };
-            }
-            NodeData::Comment { .. }
-            | NodeData::Doctype { .. }
-            | NodeData::ProcessingInstruction { .. } => return Err(Error::CommentNode),
+            _ => return Err(Error::CommentNode),
         };
 
-        let name = canonical_tag(&name);
-        if BLOCKED_ELEMENTS.contains(&name) {
+        let tag = canonical_tag(&raw_tag);
+        if BLOCKED_ELEMENTS.contains(&tag) {
             return Err(Error::BlockedTag {
-                tag: name.to_owned(),
+                tag: tag.to_owned(),
             });
         }
-        let mut children = handle
+
+        let mut children: Vec<HTMLNode> = handle
             .children
             .borrow()
             .iter()
             .flat_map(Self::from_handle)
-            .collect::<Vec<_>>();
-        if VOID_ELEMENTS.contains(&name) {
-            Ok(Self::Node(name.to_owned(), attrs, children))
-        } else if children.is_empty() {
-            Err(Error::EmptyNode {
-                tag: name.to_owned(),
-            })
-        } else if UNWRAP_SINGLE_CHILD.contains(&name)
-            && children.len() == 1
-            && children
-                .last()
-                .map(|x| matches!(x, Self::Node(..)))
-                .unwrap_or(false)
-        {
-            children.pop().ok_or_else(|| Error::EmptyNode {
-                tag: name.to_owned(),
-            })
-        } else {
-            Ok(Self::Node(name.to_owned(), attrs, children))
+            .collect();
+
+        // Void elements are emitted as-is — even if empty.
+        if VOID_ELEMENTS.contains(&tag) {
+            return Ok(Self::Node(tag.to_owned(), attrs, children));
         }
+
+        if children.is_empty() {
+            return Err(Error::EmptyNode {
+                tag: tag.to_owned(),
+            });
+        }
+
+        // Single-child wrappers (e.g. `<div><article>…</article></div>`)
+        // collapse down to their child.
+        let is_wrapper_with_single_child = UNWRAP_SINGLE_CHILD.contains(&tag)
+            && children.len() == 1
+            && matches!(children.last(), Some(Self::Node(..)));
+        if is_wrapper_with_single_child {
+            return Ok(children.pop().expect("checked len() == 1"));
+        }
+
+        Ok(Self::Node(tag.to_owned(), attrs, children))
     }
 
     pub fn get_node(&self) -> Option<&Vec<HTMLNode>> {

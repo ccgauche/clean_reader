@@ -24,7 +24,7 @@ async fn index_r(base64url: web::Path<String>) -> HttpResponse {
 async fn serve_short(short: String, mode: RenderMode) -> HttpResponse {
     let output: Result<String> = async {
         let url = get_url_for_shortened(&short)?.ok_or(Error::UnknownShortId)?;
-        println!("{}", url);
+        eprintln!("serving {}", url);
         if let Some(cached) = cache::try_cached(&url).await? {
             return Ok(cached);
         }
@@ -35,6 +35,7 @@ async fn serve_short(short: String, mode: RenderMode) -> HttpResponse {
     .await;
     match output {
         Ok(html) => HttpResponse::Ok().content_type("text/html").body(html),
+        Err(Error::UnknownShortId) => HttpResponse::NotFound().body("unknown short id"),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
@@ -49,6 +50,9 @@ async fn index_i(short: web::Path<String>) -> HttpResponse {
     let path = format!("{}/images/{}.avif", CONFIG.cache_folder, short.into_inner());
     match fs::read(path).await {
         Ok(bytes) => HttpResponse::Ok().content_type("image/avif").body(bytes),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            HttpResponse::NotFound().body("image not yet cached")
+        }
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }

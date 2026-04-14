@@ -41,7 +41,7 @@ async fn fetch_with_amp_fallback(url: &str) -> Result<String> {
     let Some(amp_url) = extract_amp_url(&original) else {
         return Ok(original);
     };
-    println!("Using AMPHTML");
+    eprintln!("Using AMPHTML: {}", amp_url);
     Ok(utils::http_get(&amp_url).await.unwrap_or(original))
 }
 
@@ -101,7 +101,7 @@ fn render_fetched_html(
     // Fall back to <title> text if the page supplied neither og:title nor
     // a Readability guess.
     if ctx.meta.title.is_none() && !article.contains_title() {
-        ctx.meta.title = ctx.meta.etitle.clone();
+        ctx.meta.title = ctx.meta.html_title.clone();
     }
 
     // Suppress the hero metadata image if the article body already starts

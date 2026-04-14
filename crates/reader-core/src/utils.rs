@@ -103,20 +103,28 @@ pub fn extract_image_src<'a>(
     None
 }
 
-fn slice_before(s: &str, c: char) -> &str {
+/// Trim everything after and including `c`, returning the remaining prefix.
+fn prefix_before(s: &str, c: char) -> &str {
     &s[..s.find(c).unwrap_or(s.len())]
 }
 
-/// Resolve a link against a base URL, skipping `data:` URIs, passing
-/// absolute `http(s)` URLs through untouched, and using `Url::join` for
-/// anything else. Trims the "descriptor" variant of `srcset`-style values
-/// (`"img.jpg 2x, img@3x 3x"` → `"img.jpg"`).
+/// If `raw` looks like an `srcset` value (`"img-1x.jpg 1x, img-2x.jpg 2x"`),
+/// return just the first URL without its descriptor. Otherwise return `raw`
+/// unchanged.
+fn strip_srcset_descriptor(raw: &str) -> &str {
+    if !raw.contains(' ') {
+        return raw;
+    }
+    let first_candidate = prefix_before(raw, ',').trim();
+    prefix_before(first_candidate, ' ')
+}
+
+/// Resolve a link against a base URL. Passes absolute `http(s)` URLs
+/// through, rejects `data:` URIs, and uses `Url::join` for anything else.
+/// Also strips `srcset` descriptors — real-world `<img>` tags hide their
+/// actual URL inside strings like `"hero-1x.jpg 1x, hero-2x.jpg 2x"`.
 pub fn absolutize_link<'a>(base: &Url, raw: &'a str) -> Option<Cow<'a, str>> {
-    let raw = if raw.contains(' ') {
-        slice_before(slice_before(raw, ',').trim(), ' ')
-    } else {
-        raw
-    };
+    let raw = strip_srcset_descriptor(raw);
     if raw.starts_with("data") {
         None
     } else if raw.starts_with("http") {
