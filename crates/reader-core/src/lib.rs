@@ -13,15 +13,16 @@
 
 pub mod cache;
 pub mod config;
+pub mod context;
 pub mod error;
 pub mod html_node;
 pub mod image;
 pub mod pipeline;
+pub mod render_mode;
 pub mod score_implementation;
 pub mod text_element;
-pub mod text_parser;
 pub mod title_extractor;
 pub mod utils;
 
 pub use error::{Error, Result};
-pub use text_parser::RenderMode;
+pub use render_mode::RenderMode;

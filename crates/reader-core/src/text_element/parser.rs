@@ -4,8 +4,8 @@
 use std::borrow::Cow;
 
 use crate::{
+    context::Context,
     html_node::HTMLNode,
-    text_parser::Context,
     utils::{canonical_tag, extract_image_src},
 };
 

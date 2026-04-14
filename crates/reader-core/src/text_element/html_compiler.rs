@@ -4,9 +4,9 @@ use std::ops::Not;
 
 use crate::{
     cache::get_shortened_from_url,
+    context::Context,
     image::{get_image_url, ImageTicket},
     text_element::TextCompound,
-    text_parser::Context,
     utils::is_html,
 };
 

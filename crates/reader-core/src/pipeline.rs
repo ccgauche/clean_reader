@@ -14,11 +14,12 @@ use std::io::Cursor;
 use html5ever::tendril::TendrilSink;
 
 use crate::{
+    context::Context,
     error::{Error, Result},
     html_node::HTMLNode,
+    render_mode::RenderMode,
     score_implementation::contains_image,
     text_element::TextCompound,
-    text_parser::{Context, RenderMode},
     title_extractor,
     utils::{self, render_article},
 };

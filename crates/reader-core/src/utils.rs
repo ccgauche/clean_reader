@@ -13,9 +13,9 @@ use reqwest::{
 
 use crate::{
     config::CONFIG,
+    context::Context,
     error::{Error, Result},
     text_element::{Header, TextCompound},
-    text_parser::Context,
 };
 
 // =====================================================================

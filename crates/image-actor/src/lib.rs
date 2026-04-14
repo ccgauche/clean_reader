@@ -1,86 +1,24 @@
-//! Image re-encoding actor.
+//! Image re-encoding actor. See [`actor::ImageActor`] for the work loop
+//! and [`message::ImageMsg`] for the message protocol.
 //!
-//! Wraps the CPU-heavy fetch + ravif encode in a ractor actor. At boot, it
-//! registers a closure with [`reader_core::image::register_encoder`] so the
-//! template renderer can trigger encoding without knowing about the actor
-//! at all.
+//! At boot, the crate spawns its actor and registers a closure with
+//! [`reader_core::image::register_encoder`] so the template renderer can
+//! trigger encoding without importing this crate.
 
-use std::path::PathBuf;
-use std::sync::mpsc::{self, SyncSender};
+mod actor;
+mod message;
+
+pub use message::ImageMsg;
+
+use std::sync::mpsc;
 
 use once_cell::sync::OnceCell;
 use ractor::concurrency::JoinHandle;
-use ractor::{Actor, ActorProcessingErr, ActorRef};
+use ractor::{Actor, ActorRef};
 use reader_core::error::{Error, Result};
-use reader_core::image::{encode_avif, register_encoder, EncoderFn, ImageTicket};
-use reader_core::utils::http_get_bytes;
+use reader_core::image::{register_encoder, EncoderFn, ImageTicket};
 
-pub enum ImageMsg {
-    Encode {
-        url: String,
-        cache_path: PathBuf,
-        done: SyncSender<()>,
-    },
-}
-
-pub struct ImageActor;
-pub struct ImageState;
-
-impl Actor for ImageActor {
-    type Msg = ImageMsg;
-    type State = ImageState;
-    type Arguments = ();
-
-    async fn pre_start(
-        &self,
-        _myself: ActorRef<ImageMsg>,
-        _args: (),
-    ) -> std::result::Result<ImageState, ActorProcessingErr> {
-        Ok(ImageState)
-    }
-
-    async fn handle(
-        &self,
-        _myself: ActorRef<ImageMsg>,
-        msg: ImageMsg,
-        _state: &mut ImageState,
-    ) -> std::result::Result<(), ActorProcessingErr> {
-        match msg {
-            ImageMsg::Encode {
-                url,
-                cache_path,
-                done,
-            } => {
-                // Fan out to an OS thread: both http_get_bytes (blocking
-                // reqwest) and encode_avif (ravif + rayon) are CPU/IO heavy
-                // and benefit from a dedicated thread outside the tokio
-                // executor.
-                std::thread::spawn(move || {
-                    match http_get_bytes(&url) {
-                        Ok(bytes) => match encode_avif(&bytes) {
-                            Ok(avif) => {
-                                if let Some(parent) = cache_path.parent() {
-                                    if let Err(e) = std::fs::create_dir_all(parent) {
-                                        eprintln!("mkdir {} failed: {}", parent.display(), e);
-                                        let _ = done.send(());
-                                        return;
-                                    }
-                                }
-                                if let Err(e) = std::fs::write(&cache_path, &avif) {
-                                    eprintln!("write {} failed: {}", cache_path.display(), e);
-                                }
-                            }
-                            Err(e) => eprintln!("encode {}: {}", url, e),
-                        },
-                        Err(e) => eprintln!("fetch {}: {}", url, e),
-                    }
-                    let _ = done.send(());
-                });
-            }
-        }
-        Ok(())
-    }
-}
+use actor::ImageActor;
 
 /// Keep the actor JoinHandle alive for the lifetime of the process so the
 /// actor isn't collected out from under us after `boot()` returns.

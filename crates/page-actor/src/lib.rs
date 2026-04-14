@@ -1,73 +1,29 @@
-//! Page-rendering actor.
+//! Page-rendering actor. See [`actor::PageActor`] for the work loop and
+//! [`message::PageMsg`] for the message protocol.
 //!
-//! Wraps [`reader_core::pipeline::render`] in a ractor actor. Each render
-//! message is dispatched to its own tokio task so concurrent renders don't
-//! serialize on the mailbox.
+//! The public API of this crate is `boot()` + `render_page()`: the server
+//! should never touch the underlying ractor types directly.
+
+mod actor;
+mod message;
+
+pub use message::PageMsg;
 
 use once_cell::sync::OnceCell;
 use ractor::concurrency::JoinHandle;
 use ractor::rpc::CallResult;
-use ractor::{Actor, ActorProcessingErr, ActorRef, RpcReplyPort};
+use ractor::{Actor, ActorRef};
 use reader_core::error::{Error, Result};
-use reader_core::pipeline;
-use reader_core::text_parser::RenderMode;
+use reader_core::render_mode::RenderMode;
 
-pub enum PageMsg {
-    Render {
-        url: String,
-        min_id: String,
-        mode: RenderMode,
-        reply: RpcReplyPort<Result<String>>,
-    },
-}
-
-pub struct PageActor;
-pub struct PageState;
-
-impl Actor for PageActor {
-    type Msg = PageMsg;
-    type State = PageState;
-    type Arguments = ();
-
-    async fn pre_start(
-        &self,
-        _myself: ActorRef<PageMsg>,
-        _args: (),
-    ) -> std::result::Result<PageState, ActorProcessingErr> {
-        Ok(PageState)
-    }
-
-    async fn handle(
-        &self,
-        _myself: ActorRef<PageMsg>,
-        msg: PageMsg,
-        _state: &mut PageState,
-    ) -> std::result::Result<(), ActorProcessingErr> {
-        match msg {
-            PageMsg::Render {
-                url,
-                min_id,
-                mode,
-                reply,
-            } => {
-                // Fan out: each render runs on its own tokio task so the
-                // mailbox drains fast and concurrent renders don't
-                // serialize.
-                tokio::spawn(async move {
-                    let result = pipeline::render(&url, &min_id, mode).await;
-                    let _ = reply.send(result);
-                });
-            }
-        }
-        Ok(())
-    }
-}
+use actor::PageActor;
 
 static PAGE_REF: OnceCell<ActorRef<PageMsg>> = OnceCell::new();
 static ACTOR_HANDLE: OnceCell<JoinHandle<()>> = OnceCell::new();
 
 /// Spawn the page actor and stash the actor ref for later `render_page`
-/// calls.
+/// calls. Must be invoked from inside a tokio runtime, exactly once per
+/// process.
 pub async fn boot() -> Result<()> {
     let (actor_ref, handle): (ActorRef<PageMsg>, JoinHandle<()>) =
         Actor::spawn(Some("page".into()), PageActor, ())
@@ -87,7 +43,7 @@ pub async fn render_page(url: &str, min_id: &str, mode: RenderMode) -> Result<St
         .ok_or_else(|| Error::Actor("PageActor not booted".into()))?;
     let url = url.to_owned();
     let min_id = min_id.to_owned();
-    let result = actor
+    let call = actor
         .call(
             |reply| PageMsg::Render {
                 url,
@@ -99,8 +55,8 @@ pub async fn render_page(url: &str, min_id: &str, mode: RenderMode) -> Result<St
         )
         .await
         .map_err(|e| Error::Actor(format!("PageActor call: {}", e)))?;
-    match result {
-        CallResult::Success(r) => r,
+    match call {
+        CallResult::Success(result) => result,
         CallResult::Timeout => Err(Error::Actor("PageActor timeout".into())),
         CallResult::SenderError => Err(Error::Actor("PageActor reply dropped".into())),
     }
