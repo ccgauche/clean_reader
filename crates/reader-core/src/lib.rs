@@ -24,3 +24,4 @@ pub mod title_extractor;
 pub mod utils;
 
 pub use error::{Error, Result};
+pub use text_parser::RenderMode;

@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     html_node::HTMLNode,
     text_parser::Context,
-    utils::{filter_names, get_img_link_map},
+    utils::{canonical_tag, extract_image_src},
 };
 
 use super::TextCompound;
@@ -51,7 +51,7 @@ impl<'a> TextCompound<'a> {
     pub fn _from_node(ctx: &mut Context<'a>, node: &'a HTMLNode) -> Option<Self> {
         match node {
             HTMLNode::Node(a, b, c) => {
-                let name = filter_names(a.as_str());
+                let name = canonical_tag(a.as_str());
                 match name {
                     "div" | "section" | "main" | "article" | "html" | "body" | "document" => {
                         Self::from_array(ctx, c)
@@ -113,7 +113,7 @@ impl<'a> TextCompound<'a> {
                     )),
                     "sub" => Some(Self::Sub(Box::new(Self::from_array(ctx, c)?))),
                     "sup" => Some(Self::Sup(Box::new(Self::from_array(ctx, c)?))),
-                    "img" => Some(Self::Img(get_img_link_map(ctx, b)?)),
+                    "img" => Some(Self::Img(extract_image_src(ctx, b)?)),
                     "h1" | "h2" | "h3" | "h4" | "h5" => {
                         let h = Self::from_array(ctx, c)?;
                         if let Some(e) = &ctx.meta.title {

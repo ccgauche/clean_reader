@@ -21,11 +21,19 @@ use crate::{
     utils::sha256,
 };
 
-const IMAGE_EXT: &[&str] = &[".jpg", ".jpeg", ".png", ".webp", ".bmp", ".avif"];
+/// Image-URL suffixes the re-encoder is willing to attempt. Anything else
+/// (SVGs, webm animations, …) is passed through unchanged.
+const REENCODABLE_EXTENSIONS: &[&str] = &[".jpg", ".jpeg", ".png", ".webp", ".bmp", ".avif"];
 
-/// Ticket returned by `get_image_url` while an image re-encode is in flight.
-/// The template renderer waits on it at the end of `gen_html_2` to ensure
-/// the `/i/{hash}.avif` file is on disk before the response is sent.
+/// Length of the sha256 prefix used in `/i/{…}.avif` cache paths. 8 hex
+/// chars = 32 bits of collision space, which is plenty for a single
+/// server's image cache and keeps URLs short.
+const IMAGE_HASH_PREFIX_LEN: usize = 8;
+
+/// Ticket returned by `get_image_url` while an image re-encode is in
+/// flight. The template renderer waits on it at the end of
+/// `render_article` to ensure the `/i/{hash}.avif` file is on disk before
+/// the response is sent.
 pub struct ImageTicket {
     pub done: Receiver<()>,
 }
@@ -50,15 +58,16 @@ pub fn get_image_url(url: &str) -> (String, Option<ImageTicket>) {
         return (url.to_owned(), None);
     }
     let hash = sha256(url);
-    let path = format!("{}/images/{}.avif", CONFIG.cache_folder, &hash[..8]);
-    let cache_file = Path::new(&path);
-    if cache_file.exists() {
-        return (format!("/i/{}", &hash[..8]), None);
+    let short_hash = &hash[..IMAGE_HASH_PREFIX_LEN];
+    let cache_path = format!("{}/images/{}.avif", CONFIG.cache_folder, short_hash);
+    if Path::new(&cache_path).exists() {
+        return (format!("/i/{}", short_hash), None);
     }
-    if IMAGE_EXT.iter().any(|x| url.contains(x)) {
+    let reencodable = REENCODABLE_EXTENSIONS.iter().any(|ext| url.contains(ext));
+    if reencodable {
         if let Some(encoder) = ENCODER.get() {
-            if let Some(ticket) = encoder(url.to_owned(), cache_file.to_owned()) {
-                return (format!("/i/{}", &hash[..8]), Some(ticket));
+            if let Some(ticket) = encoder(url.to_owned(), PathBuf::from(cache_path)) {
+                return (format!("/i/{}", short_hash), Some(ticket));
             }
         }
     }

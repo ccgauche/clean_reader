@@ -1,3 +1,13 @@
+//! End-to-end article pipeline.
+//!
+//! [`render`] is the public entry point: given a URL it fetches the HTML
+//! (following `amphtml` hints where present), hands the body to Readability
+//! for content selection, then lowers the result through `HTMLNode`,
+//! `TextCompound` and the askama template to produce the final page.
+//!
+//! All CPU-bound work runs inside `spawn_blocking`; only the network
+//! fetches touch the async executor directly.
+
 use std::collections::HashMap;
 use std::io::Cursor;
 
@@ -8,83 +18,97 @@ use crate::{
     html_node::HTMLNode,
     score_implementation::contains_image,
     text_element::TextCompound,
-    utils::{self, gen_html_2},
+    text_parser::{Context, RenderMode},
+    title_extractor,
+    utils::{self, render_article},
 };
 
-/// Fetch a URL (following AMP redirects when present) and render it through
-/// the clean-read pipeline. Async so we can use the shared reqwest client;
-/// the CPU-bound stages run inside `spawn_blocking` to avoid stalling the
-/// async executor.
-pub async fn run_v2(url: &str, min_id: &str, as_download: bool) -> Result<String> {
-    let httpstring = utils::http_get(url).await?;
-    // Look for a `rel="amphtml"` link and, if present, fetch the AMP version.
-    // A malformed link or a failed fetch falls back to the original HTML.
-    let amp_target = httpstring
-        .find("rel=\"amphtml\"")
-        .and_then(|i| {
-            httpstring[(i + "rel=\"amphtml\"".len())..]
-                .split('"')
-                .nth(1)
-        })
-        .map(str::to_owned);
-    let httpstring = if let Some(amp_url) = amp_target {
-        println!("Using AMPHTML");
-        utils::http_get(&amp_url).await.unwrap_or(httpstring)
-    } else {
-        httpstring
-    };
+/// Fetch a URL and render it through the reader pipeline.
+pub async fn render(url: &str, min_id: &str, mode: RenderMode) -> Result<String> {
+    let html = fetch_with_amp_fallback(url).await?;
     let parsed_url = reqwest::Url::parse(url).map_err(|e| Error::InvalidUrl(e.to_string()))?;
     let min_id = min_id.to_string();
-    tokio::task::spawn_blocking(move || render(httpstring, parsed_url, min_id, as_download))
+    tokio::task::spawn_blocking(move || render_fetched_html(html, parsed_url, min_id, mode))
         .await
         .map_err(|_| Error::BlockingCanceled)?
 }
 
-fn render(
-    httpstring: String,
+/// Download the article HTML, replacing it with the AMP version if one is
+/// linked and reachable. A malformed link or failed AMP fetch falls back
+/// to the original HTML rather than erroring.
+async fn fetch_with_amp_fallback(url: &str) -> Result<String> {
+    let original = utils::http_get(url).await?;
+    let Some(amp_url) = extract_amp_url(&original) else {
+        return Ok(original);
+    };
+    println!("Using AMPHTML");
+    Ok(utils::http_get(&amp_url).await.unwrap_or(original))
+}
+
+/// Scan raw HTML for a `rel="amphtml"` link and return its target.
+fn extract_amp_url(html: &str) -> Option<String> {
+    const MARKER: &str = "rel=\"amphtml\"";
+    let marker_start = html.find(MARKER)?;
+    let after = &html[marker_start + MARKER.len()..];
+    after.split('"').nth(1).map(str::to_owned)
+}
+
+/// CPU-bound half of the pipeline: Readability → `HTMLNode` →
+/// `TextCompound` → askama template. Runs inside `spawn_blocking`.
+fn render_fetched_html(
+    html: String,
     parsed_url: reqwest::Url,
     min_id: String,
-    as_download: bool,
+    mode: RenderMode,
 ) -> Result<String> {
-    // Scan metadata from the raw HTML — cheap regex over the <head> region,
-    // avoids an extra full html5ever parse.
-    let mut meta = crate::title_extractor::try_extract_data(&httpstring);
+    // Lightweight regex scan for og:title / og:image / <title>, avoiding a
+    // full html5ever parse just for metadata.
+    let mut meta = title_extractor::try_extract_data(&html);
 
-    // Readability (Firefox reader-view algorithm) picks the article subtree.
-    let mut cursor = Cursor::new(httpstring);
-    let product = readability::extractor::extract(&mut cursor, &parsed_url)
+    // Readability (Firefox reader-view algorithm) picks the article
+    // subtree and returns it as a serialized HTML fragment.
+    let product = readability::extractor::extract(&mut Cursor::new(html), &parsed_url)
         .map_err(|e| Error::Readability(e.to_string()))?;
     if meta.title.is_none() && !product.title.is_empty() {
         meta.title = Some(product.title);
     }
 
-    // Lower Readability's cleaned HTML into our HTMLNode / TextCompound pipeline.
+    // Parse the cleaned fragment into our `HTMLNode` tree.
     let content_dom = html5ever::parse_document(
         markup5ever_rcdom::RcDom::default(),
         html5ever::ParseOpts::default(),
     )
     .one(product.content);
-    let html = HTMLNode::from_handle(&content_dom.document)?;
+    let html_tree = HTMLNode::from_handle(&content_dom.document)?;
 
-    let mut ctx = crate::text_parser::Context {
+    let mut ctx = Context {
         meta,
-        download: as_download,
+        mode,
         min_id,
         url: parsed_url,
         map: HashMap::new(),
         count: 0,
     };
-    let text = TextCompound::from_node(&mut ctx, &html).ok_or(Error::EmptyArticle)?;
-    let text = if ctx.meta.title.is_some() {
-        text.remove_title()
+    let article = TextCompound::from_node(&mut ctx, &html_tree).ok_or(Error::EmptyArticle)?;
+
+    // Drop a redundant leading H1 if we already have a page title.
+    let article = if ctx.meta.title.is_some() {
+        article.remove_title()
     } else {
-        text
+        article
     };
-    if ctx.meta.title.is_none() && !text.contains_title() {
+
+    // Fall back to <title> text if the page supplied neither og:title nor
+    // a Readability guess.
+    if ctx.meta.title.is_none() && !article.contains_title() {
         ctx.meta.title = ctx.meta.etitle.clone();
-    };
-    if contains_image(&html).0 {
+    }
+
+    // Suppress the hero metadata image if the article body already starts
+    // with an image — otherwise we'd show two of the same picture.
+    if contains_image(&html_tree).0 {
         ctx.meta.image = None;
     }
-    gen_html_2(&[text], &mut ctx)
+
+    render_article(&[article], &mut ctx)
 }

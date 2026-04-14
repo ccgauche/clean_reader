@@ -1,6 +1,6 @@
 //! Page-rendering actor.
 //!
-//! Wraps [`reader_core::pipeline::run_v2`] in a ractor actor. Each render
+//! Wraps [`reader_core::pipeline::render`] in a ractor actor. Each render
 //! message is dispatched to its own tokio task so concurrent renders don't
 //! serialize on the mailbox.
 
@@ -9,13 +9,14 @@ use ractor::concurrency::JoinHandle;
 use ractor::rpc::CallResult;
 use ractor::{Actor, ActorProcessingErr, ActorRef, RpcReplyPort};
 use reader_core::error::{Error, Result};
-use reader_core::pipeline::run_v2;
+use reader_core::pipeline;
+use reader_core::text_parser::RenderMode;
 
 pub enum PageMsg {
     Render {
         url: String,
         min_id: String,
-        as_download: bool,
+        mode: RenderMode,
         reply: RpcReplyPort<Result<String>>,
     },
 }
@@ -46,14 +47,14 @@ impl Actor for PageActor {
             PageMsg::Render {
                 url,
                 min_id,
-                as_download,
+                mode,
                 reply,
             } => {
                 // Fan out: each render runs on its own tokio task so the
                 // mailbox drains fast and concurrent renders don't
                 // serialize.
                 tokio::spawn(async move {
-                    let result = run_v2(&url, &min_id, as_download).await;
+                    let result = pipeline::render(&url, &min_id, mode).await;
                     let _ = reply.send(result);
                 });
             }
@@ -80,7 +81,7 @@ pub async fn boot() -> Result<()> {
 }
 
 /// Ask the page actor to render a URL.
-pub async fn render_page(url: &str, min_id: &str, as_download: bool) -> Result<String> {
+pub async fn render_page(url: &str, min_id: &str, mode: RenderMode) -> Result<String> {
     let actor = PAGE_REF
         .get()
         .ok_or_else(|| Error::Actor("PageActor not booted".into()))?;
@@ -91,7 +92,7 @@ pub async fn render_page(url: &str, min_id: &str, as_download: bool) -> Result<S
             |reply| PageMsg::Render {
                 url,
                 min_id,
-                as_download,
+                mode,
                 reply,
             },
             None,

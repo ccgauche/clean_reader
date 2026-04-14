@@ -2,6 +2,7 @@ use actix_web::{get, web, App, HttpResponse, HttpServer};
 use reader_core::cache::{self, get_shortened_from_url, get_url_for_shortened};
 use reader_core::config::CONFIG;
 use reader_core::error::{Error, Result};
+use reader_core::RenderMode;
 use tokio::fs;
 
 #[get("/r/{base64url}")]
@@ -11,55 +12,50 @@ async fn index_r(base64url: web::Path<String>) -> HttpResponse {
         get_shortened_from_url(&url)
     })();
     match output {
-        Ok(e) => HttpResponse::MovedPermanently()
-            .insert_header(("location", format!("/m/{}", e)))
+        Ok(short) => HttpResponse::MovedPermanently()
+            .insert_header(("location", format!("/m/{}", short)))
             .body(""),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
-/// Resolve a short id to a URL, serve from the disk cache if enabled, else
-/// ask the page actor to render it and store the result.
-async fn serve_short(short: String, as_download: bool) -> HttpResponse {
+/// Resolve a short id to a URL, serve from the disk cache if enabled,
+/// else ask the page actor to render it and store the result.
+async fn serve_short(short: String, mode: RenderMode) -> HttpResponse {
     let output: Result<String> = async {
         let url = get_url_for_shortened(&short)?.ok_or(Error::UnknownShortId)?;
         println!("{}", url);
         if let Some(cached) = cache::try_cached(&url).await? {
             return Ok(cached);
         }
-        let rendered = page_actor::render_page(&url, &short, as_download).await?;
+        let rendered = page_actor::render_page(&url, &short, mode).await?;
         cache::store(&url, &rendered).await;
         Ok(rendered)
     }
     .await;
     match output {
-        Ok(e) => HttpResponse::Ok().content_type("text/html").body(e),
+        Ok(html) => HttpResponse::Ok().content_type("text/html").body(html),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
 #[get("/m/{short}")]
 async fn index_m(short: web::Path<String>) -> HttpResponse {
-    serve_short(short.into_inner(), false).await
+    serve_short(short.into_inner(), RenderMode::View).await
 }
 
 #[get("/i/{short}")]
 async fn index_i(short: web::Path<String>) -> HttpResponse {
-    match fs::read(format!(
-        "{}/images/{}.avif",
-        CONFIG.cache_folder,
-        short.into_inner()
-    ))
-    .await
-    {
-        Ok(e) => HttpResponse::Ok().content_type("image/avif").body(e),
+    let path = format!("{}/images/{}.avif", CONFIG.cache_folder, short.into_inner());
+    match fs::read(path).await {
+        Ok(bytes) => HttpResponse::Ok().content_type("image/avif").body(bytes),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
 #[get("/d/{short}")]
 async fn download(short: web::Path<String>) -> HttpResponse {
-    serve_short(short.into_inner(), true).await
+    serve_short(short.into_inner(), RenderMode::Download).await
 }
 
 #[actix_web::main]

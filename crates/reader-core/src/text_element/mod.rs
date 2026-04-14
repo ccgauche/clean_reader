@@ -1,7 +1,6 @@
 use std::{borrow::Cow, str::FromStr};
 
-mod compiler;
-mod display;
+mod html_compiler;
 mod parser;
 
 #[derive(Debug)]

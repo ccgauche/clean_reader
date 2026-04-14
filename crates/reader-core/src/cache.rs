@@ -15,6 +15,11 @@ use crate::{
     utils::sha256,
 };
 
+/// Length (in hex chars) of the short id used in `/m/{…}` URLs. 6 hex
+/// chars = 24 bits of collision space, which is fine for a single-user
+/// reader instance and keeps URLs compact.
+const SHORT_ID_LEN: usize = 6;
+
 // Startup-time panic is acceptable here: a server with no URL store is
 // fundamentally unusable, and a clear failure at boot is easier to diagnose
 // than a cascade of "SQLite not initialised" errors at request time.
@@ -47,7 +52,7 @@ pub fn get_url_for_shortened(shortened: &str) -> Result<Option<String>> {
 }
 
 pub fn get_shortened_from_url(url: &str) -> Result<String> {
-    let short = sha256(url)[..6].to_owned();
+    let short = sha256(url)[..SHORT_ID_LEN].to_owned();
     let conn = DB.lock().map_err(|_| Error::DbPoisoned)?;
     conn.execute(
         "INSERT OR IGNORE INTO urls (short, url) VALUES (?1, ?2)",
