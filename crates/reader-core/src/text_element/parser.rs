@@ -9,7 +9,7 @@ use crate::{
     utils::{canonical_tag, extract_image_src},
 };
 
-use super::TextCompound;
+use super::{TableCell, TextCompound};
 
 impl<'a> TextCompound<'a> {
     /// Flatten `self` into plain text. Used for heading dedup against the
@@ -35,7 +35,7 @@ impl<'a> TextCompound<'a> {
             Self::Img(_) | Self::Br => Cow::Borrowed(""),
             Self::Table(rows) => Cow::Owned(
                 rows.iter()
-                    .flat_map(|row| row.iter().map(|(_, cell)| cell.text()))
+                    .flat_map(|row| row.iter().map(|cell| cell.content().text()))
                     .collect::<String>(),
             ),
         }
@@ -153,23 +153,25 @@ impl<'a> TextCompound<'a> {
 }
 
 /// Lower a `<table>` into our row-of-cells IR.
-fn lower_table<'a>(
-    ctx: &mut Context<'a>,
-    table: &'a HTMLNode,
-) -> Vec<Vec<(bool, TextCompound<'a>)>> {
+fn lower_table<'a>(ctx: &mut Context<'a>, table: &'a HTMLNode) -> Vec<Vec<TableCell<'a>>> {
     table
         .select(&["tr"])
         .iter()
         .map(|row| {
             row.select(&["td", "th"])
                 .iter()
-                .filter_map(|cell| {
-                    let is_header = cell.get_tag_name() == Some("th");
-                    Some((is_header, TextCompound::from_array(ctx, cell.get_node()?)?))
-                })
+                .filter_map(|cell| lower_cell(ctx, cell))
                 .collect()
         })
         .collect()
+}
+
+fn lower_cell<'a>(ctx: &mut Context<'a>, cell: &'a HTMLNode) -> Option<TableCell<'a>> {
+    let content = TextCompound::from_array(ctx, cell.get_node()?)?;
+    Some(match cell.get_tag_name() {
+        Some("th") => TableCell::Header(content),
+        _ => TableCell::Data(content),
+    })
 }
 
 /// Whether two strings are equal after dropping all non-ASCII-alphanumeric

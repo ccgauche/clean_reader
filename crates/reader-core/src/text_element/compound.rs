@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use super::Header;
+use super::{Header, TableCell};
 
 /// Rich-text IR produced by the parser stage and consumed by the HTML
 /// template compiler.
@@ -28,7 +28,7 @@ pub enum TextCompound<'a> {
     P(Box<TextCompound<'a>>),
     Quote(Box<TextCompound<'a>>),
     Ul(Vec<TextCompound<'a>>),
-    Table(Vec<Vec<(bool, TextCompound<'a>)>>),
+    Table(Vec<Vec<TableCell<'a>>>),
 }
 
 impl TextCompound<'_> {

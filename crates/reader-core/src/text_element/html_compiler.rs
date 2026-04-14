@@ -98,9 +98,8 @@ impl<'a> TextCompound<'a> {
                     .flat_map(|row| {
                         push_container(out, "tr", |out| {
                             row.iter()
-                                .flat_map(|(is_header, cell)| {
-                                    let tag = if *is_header { "th" } else { "td" };
-                                    push_simple_element(out, tag, cell, ctx)
+                                .flat_map(|cell| {
+                                    push_simple_element(out, cell.html_tag(), cell.content(), ctx)
                                 })
                                 .collect()
                         })
