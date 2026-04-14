@@ -43,7 +43,7 @@ impl<'a> TextCompound<'a> {
         }
     }
 
-    /// Lower a slice of sibling nodes into one `TextCompound`. Single
+    /// Lower a slice of sibling nodes into one `TextCompound`. A single
     /// survivor is returned directly; multiple survivors get wrapped in
     /// [`TextCompound::Array`].
     pub fn from_array(ctx: &mut Context<'a>, siblings: &'a [HTMLNode]) -> Option<Self> {
@@ -65,7 +65,7 @@ impl<'a> TextCompound<'a> {
                 attrs,
                 children,
             } => (tag, attrs, children),
-            HTMLNode::Text(text) => return Some(Self::Raw(Cow::Borrowed(text))),
+            HTMLNode::Text(text) => return Some(Self::raw(text.as_str())),
         };
 
         match canonical_tag(tag.as_str()) {
@@ -73,7 +73,7 @@ impl<'a> TextCompound<'a> {
                 Self::from_array(ctx, children)
             }
             "table" => Some(Self::Table(lower_table(ctx, node))),
-            "time" => Some(Self::P(Box::new(Self::from_array(ctx, children)?))),
+            "time" => Self::from_array(ctx, children).map(Self::paragraph),
             "p" => {
                 let is_code_block = attrs
                     .get("class")
@@ -84,34 +84,25 @@ impl<'a> TextCompound<'a> {
                     text.push('\n');
                     Some(Self::Code(text))
                 } else {
-                    Some(Self::P(Box::new(Self::from_array(ctx, children)?)))
+                    Self::from_array(ctx, children).map(Self::paragraph)
                 }
             }
-            "a" => attrs
-                .get("href")
-                .map(|raw| ctx.absolutize(raw))
-                .and_then(|href| {
-                    Some(Self::Link {
-                        content: Box::new(Self::from_array(ctx, children)?),
-                        href,
-                    })
-                })
-                .or_else(|| Self::from_array(ctx, children)),
-            "u" => Some(Self::Underline(Box::new(Self::from_array(ctx, children)?))),
-            "i" | "em" => Some(Self::Italic(Box::new(Self::from_array(ctx, children)?))),
-            "b" | "strong" => Some(Self::Bold(Box::new(Self::from_array(ctx, children)?))),
+            "a" => match attrs.get("href") {
+                Some(raw) => {
+                    let href = ctx.absolutize(raw);
+                    Self::from_array(ctx, children).map(|body| Self::link(body, href))
+                }
+                None => Self::from_array(ctx, children),
+            },
+            "u" => Self::from_array(ctx, children).map(Self::underline),
+            "i" | "em" => Self::from_array(ctx, children).map(Self::italic),
+            "b" | "strong" => Self::from_array(ctx, children).map(Self::bold),
             "br" | "wbr" | "hr" => Some(Self::Br),
-            "small" => Some(Self::Small(Box::new(Self::from_array(ctx, children)?))),
+            "small" => Self::from_array(ctx, children).map(Self::small),
             "span" | "q" => Self::from_array(ctx, children),
             "abbr" => {
-                let title = attrs
-                    .get("title")
-                    .map(|t| Cow::Borrowed(t.as_str()))
-                    .unwrap_or_else(|| Cow::Borrowed(""));
-                Some(Self::Abbr {
-                    content: Box::new(Self::from_array(ctx, children)?),
-                    title,
-                })
+                let title = attrs.get("title").map(String::as_str).unwrap_or("");
+                Self::from_array(ctx, children).map(|body| Self::abbr(body, title))
             }
             "ul" | "ol" => Some(Self::Ul(
                 children
@@ -119,9 +110,9 @@ impl<'a> TextCompound<'a> {
                     .filter_map(|item| Self::from_array(ctx, item.children()?))
                     .collect(),
             )),
-            "sub" => Some(Self::Sub(Box::new(Self::from_array(ctx, children)?))),
-            "sup" => Some(Self::Sup(Box::new(Self::from_array(ctx, children)?))),
-            "img" => Some(Self::Img(extract_image_src(ctx, attrs)?)),
+            "sub" => Self::from_array(ctx, children).map(Self::sub),
+            "sup" => Self::from_array(ctx, children).map(Self::sup),
+            "img" => extract_image_src(ctx, attrs).map(Self::img),
             heading_tag @ ("h1" | "h2" | "h3" | "h4" | "h5") => {
                 let body = Self::from_array(ctx, children)?;
                 // Drop a heading whose text matches the page title — we
@@ -131,15 +122,11 @@ impl<'a> TextCompound<'a> {
                         return None;
                     }
                 }
-                let fragment_ids = attrs
+                let fragment_ids: Vec<&str> = attrs
                     .get("id")
-                    .map(|v| v.split(' ').map(Cow::Borrowed).collect())
+                    .map(|v| v.split(' ').collect())
                     .unwrap_or_default();
-                Some(Self::Heading {
-                    fragment_ids,
-                    level: heading_tag.parse().ok()?,
-                    content: Box::new(body),
-                })
+                Some(Self::heading(heading_tag.parse().ok()?, fragment_ids, body))
             }
             "figure" | "figcaption" => {
                 // Prefer the `<figcaption>` child if one is present as the
@@ -158,9 +145,9 @@ impl<'a> TextCompound<'a> {
                 } else {
                     Self::from_array(ctx, children)?
                 };
-                Some(Self::Quote(Box::new(inner)))
+                Some(Self::quote(inner))
             }
-            "quote" | "blockquote" => Some(Self::Quote(Box::new(Self::from_array(ctx, children)?))),
+            "quote" | "blockquote" => Self::from_array(ctx, children).map(Self::quote),
             "cite" | "code" | "pre" => Some(Self::Code(node.get_text())),
             "math" => None, // not supported yet
             unknown => {

@@ -259,17 +259,11 @@ struct ArticleTemplate<'a> {
 /// Build the `TextCompound` sequence that seeds the article body: the
 /// main `<h1>` with the page title and the `<img>` with the hero image.
 fn article_header<'a>(ctx: &'a Context<'a>) -> [TextCompound<'a>; 2] {
-    fn borrow_or_empty(s: Option<&String>) -> Cow<'_, str> {
-        s.map(|x| Cow::Borrowed(x.as_str()))
-            .unwrap_or_else(|| Cow::Borrowed(""))
-    }
+    let title = ctx.meta.title.as_deref().unwrap_or("");
+    let image = ctx.meta.image.as_deref().unwrap_or("");
     [
-        TextCompound::Heading {
-            fragment_ids: vec![Cow::Borrowed("main-title")],
-            level: Header::H1,
-            content: Box::new(TextCompound::Raw(borrow_or_empty(ctx.meta.title.as_ref()))),
-        },
-        TextCompound::Img(borrow_or_empty(ctx.meta.image.as_ref())),
+        TextCompound::heading(Header::H1, ["main-title"], TextCompound::raw(title)),
+        TextCompound::img(image),
     ]
 }
 

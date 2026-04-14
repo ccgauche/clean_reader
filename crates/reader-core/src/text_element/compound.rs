@@ -45,7 +45,83 @@ pub enum TextCompound<'a> {
     Table(Table<'a>),
 }
 
-impl TextCompound<'_> {
+impl<'a> TextCompound<'a> {
+    /// Construct a `Raw` text node from anything that can become a
+    /// `Cow<'a, str>` — `&'a str`, `String`, or an existing `Cow`.
+    pub fn raw(text: impl Into<Cow<'a, str>>) -> Self {
+        Self::Raw(text.into())
+    }
+
+    /// Construct an `Img` from a URL-like value.
+    pub fn img(src: impl Into<Cow<'a, str>>) -> Self {
+        Self::Img(src.into())
+    }
+
+    /// Wrap `content` in an anchor with the given href.
+    pub fn link(content: Self, href: impl Into<Cow<'a, str>>) -> Self {
+        Self::Link {
+            content: Box::new(content),
+            href: href.into(),
+        }
+    }
+
+    /// Wrap `content` in an `<abbr>` with the given `title` attribute.
+    /// Pass an empty string when the source had no title.
+    pub fn abbr(content: Self, title: impl Into<Cow<'a, str>>) -> Self {
+        Self::Abbr {
+            content: Box::new(content),
+            title: title.into(),
+        }
+    }
+
+    /// Construct a heading at `level` wrapping `content`. Accepts any
+    /// iterable of string-like items for the fragment ids — `[]`, a
+    /// `Vec<&str>`, a `Vec<String>`, or anything that yields
+    /// `impl Into<Cow<'a, str>>`.
+    pub fn heading<I, S>(level: Header, fragment_ids: I, content: Self) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<Cow<'a, str>>,
+    {
+        Self::Heading {
+            fragment_ids: fragment_ids.into_iter().map(Into::into).collect(),
+            level,
+            content: Box::new(content),
+        }
+    }
+
+    pub fn italic(content: Self) -> Self {
+        Self::Italic(Box::new(content))
+    }
+
+    pub fn bold(content: Self) -> Self {
+        Self::Bold(Box::new(content))
+    }
+
+    pub fn underline(content: Self) -> Self {
+        Self::Underline(Box::new(content))
+    }
+
+    pub fn small(content: Self) -> Self {
+        Self::Small(Box::new(content))
+    }
+
+    pub fn sub(content: Self) -> Self {
+        Self::Sub(Box::new(content))
+    }
+
+    pub fn sup(content: Self) -> Self {
+        Self::Sup(Box::new(content))
+    }
+
+    pub fn paragraph(content: Self) -> Self {
+        Self::P(Box::new(content))
+    }
+
+    pub fn quote(content: Self) -> Self {
+        Self::Quote(Box::new(content))
+    }
+
     /// Whether the first element of an `Array` is an `H1`. Used by the
     /// pipeline to decide whether to dedup the page title against the
     /// article's own leading heading.
