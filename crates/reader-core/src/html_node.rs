@@ -1,9 +1,9 @@
 //! Pruned HTML tree used by the text-compound lowering stage.
 //!
-//! This is our own tiny tree flavor built on top of a fully-parsed rcdom
+//! This is our own tiny tree flavour built on top of a fully-parsed rcdom
 //! handle. It drops structural noise (nav/footer/script/…), collapses
 //! pass-through single-child wrappers (div → its child), and stores every
-//! surviving element as `(tag, attrs, children)`.
+//! surviving element as a named-field `Element` variant.
 
 use std::collections::HashMap;
 
@@ -14,15 +14,15 @@ use crate::{
     utils::canonical_tag,
 };
 
-/// Elements we drop unconditionally — structural noise that cannot contain
-/// article content.
+/// Elements we drop unconditionally — structural noise that cannot
+/// contain article content.
 const BLOCKED_ELEMENTS: &[&str] = &[
     "button", "input", "form", "nav", "footer", "header", "script", "link", "noscript", "aside",
     "style", "head",
 ];
 
-/// Wrapper elements that should collapse into their single child when they
-/// have exactly one: `<div><article>…</article></div>` becomes `<article>…</article>`.
+/// Wrapper elements that collapse into their single child when they have
+/// exactly one: `<div><article>…</article></div>` becomes `<article>…</article>`.
 const UNWRAP_SINGLE_CHILD: &[&str] = &[
     "div",
     "span",
@@ -39,25 +39,30 @@ const UNWRAP_SINGLE_CHILD: &[&str] = &[
 /// Elements allowed to exist without any children (void elements and images).
 const VOID_ELEMENTS: &[&str] = &["br", "hr", "img"];
 
-/// Either a structural element (`tag`, `attrs`, `children`) or a raw text
-/// node. This is the tree fed into the `TextCompound` lowering step.
+/// Either a structural element or a raw text node. This is the tree fed
+/// into the `TextCompound` lowering step.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HTMLNode {
-    Node(String, HashMap<String, String>, Vec<HTMLNode>),
+    Element {
+        tag: String,
+        attrs: HashMap<String, String>,
+        children: Vec<HTMLNode>,
+    },
     Text(String),
 }
 
 impl HTMLNode {
+    /// Recursively concatenate the text content of this subtree.
     pub fn get_text(&self) -> String {
         fn walk(node: &HTMLNode, out: &mut String) {
             match node {
-                HTMLNode::Node(_, _, c) => c.iter().for_each(|x| walk(x, out)),
-                HTMLNode::Text(a) => out.push_str(a),
+                HTMLNode::Element { children, .. } => children.iter().for_each(|c| walk(c, out)),
+                HTMLNode::Text(text) => out.push_str(text),
             }
         }
-        let mut s = String::new();
-        walk(self, &mut s);
-        s
+        let mut out = String::new();
+        walk(self, &mut out);
+        out
     }
 
     pub fn from_handle(handle: &Handle) -> Result<HTMLNode> {
@@ -100,7 +105,11 @@ impl HTMLNode {
 
         // Void elements are emitted as-is — even if empty.
         if VOID_ELEMENTS.contains(&tag) {
-            return Ok(Self::Node(tag.to_owned(), attrs, children));
+            return Ok(Self::Element {
+                tag: tag.to_owned(),
+                attrs,
+                children,
+            });
         }
 
         if children.is_empty() {
@@ -113,39 +122,44 @@ impl HTMLNode {
         // collapse down to their child.
         let is_wrapper_with_single_child = UNWRAP_SINGLE_CHILD.contains(&tag)
             && children.len() == 1
-            && matches!(children.last(), Some(Self::Node(..)));
+            && matches!(children.last(), Some(Self::Element { .. }));
         if is_wrapper_with_single_child {
             return Ok(children.pop().expect("checked len() == 1"));
         }
 
-        Ok(Self::Node(tag.to_owned(), attrs, children))
+        Ok(Self::Element {
+            tag: tag.to_owned(),
+            attrs,
+            children,
+        })
     }
 
-    pub fn get_node(&self) -> Option<&Vec<HTMLNode>> {
-        if let Self::Node(_, _, a) = self {
-            Some(a)
-        } else {
-            None
+    /// Children of an `Element`, or `None` on a text node.
+    pub fn children(&self) -> Option<&Vec<HTMLNode>> {
+        match self {
+            Self::Element { children, .. } => Some(children),
+            Self::Text(_) => None,
         }
     }
 
+    /// Tag name of an `Element`, or `None` on a text node.
     pub fn get_tag_name(&self) -> Option<&str> {
-        if let Self::Node(a, _, _) = self {
-            Some(a)
-        } else {
-            None
+        match self {
+            Self::Element { tag, .. } => Some(tag),
+            Self::Text(_) => None,
         }
     }
 
+    /// Depth-first collect all descendants whose tag is in `tag_names`.
+    /// If `self` itself matches, it's returned immediately without
+    /// descending into its subtree.
     pub fn select(&self, tag_names: &[&str]) -> Vec<&Self> {
-        if let Self::Node(a, _, b) = self {
-            if tag_names.contains(&a.as_str()) {
-                vec![self]
-            } else {
-                b.iter().flat_map(|x| x.select(tag_names)).collect()
+        match self {
+            Self::Element { tag, .. } if tag_names.contains(&tag.as_str()) => vec![self],
+            Self::Element { children, .. } => {
+                children.iter().flat_map(|c| c.select(tag_names)).collect()
             }
-        } else {
-            Vec::new()
+            Self::Text(_) => Vec::new(),
         }
     }
 }
@@ -167,8 +181,8 @@ mod tests {
     fn tags(node: &HTMLNode) -> Vec<String> {
         let mut out = Vec::new();
         fn walk(node: &HTMLNode, out: &mut Vec<String>) {
-            if let HTMLNode::Node(name, _, children) = node {
-                out.push(name.clone());
+            if let HTMLNode::Element { tag, children, .. } = node {
+                out.push(tag.clone());
                 for c in children {
                     walk(c, out);
                 }

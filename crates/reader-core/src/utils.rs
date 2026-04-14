@@ -264,11 +264,11 @@ fn article_header<'a>(ctx: &'a Context<'a>) -> [TextCompound<'a>; 2] {
             .unwrap_or_else(|| Cow::Borrowed(""))
     }
     [
-        TextCompound::H(
-            vec![Cow::Borrowed("main-title")],
-            Header::H1,
-            Box::new(TextCompound::Raw(borrow_or_empty(ctx.meta.title.as_ref()))),
-        ),
+        TextCompound::Heading {
+            fragment_ids: vec![Cow::Borrowed("main-title")],
+            level: Header::H1,
+            content: Box::new(TextCompound::Raw(borrow_or_empty(ctx.meta.title.as_ref()))),
+        },
         TextCompound::Img(borrow_or_empty(ctx.meta.image.as_ref())),
     ]
 }

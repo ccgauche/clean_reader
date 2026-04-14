@@ -33,16 +33,16 @@ impl<'a> TextCompound<'a> {
                 out.push_str(&html_escape::encode_text(a));
                 vec![]
             }
-            Self::Link(child, href) => {
+            Self::Link { content, href } => {
                 let rewritten = rewrite_href(ctx, href);
-                push_element(out, "a", Some(("href".to_owned(), rewritten)), child, ctx)
+                push_element(out, "a", Some(("href".to_owned(), rewritten)), content, ctx)
             }
             Self::Italic(child) => push_simple_element(out, "i", child, ctx),
             Self::Bold(child) => push_simple_element(out, "b", child, ctx),
             Self::Underline(child) => push_simple_element(out, "u", child, ctx),
             Self::Array(items) => items.iter().flat_map(|x| x.html(ctx, out)).collect(),
-            Self::Abbr(child, title) => {
-                push_element(out, "small", Some(("title", title.as_ref())), child, ctx)
+            Self::Abbr { content, title } => {
+                push_element(out, "small", Some(("title", title.as_ref())), content, ctx)
             }
             Self::Sup(child) => push_simple_element(out, "sup", child, ctx),
             Self::Sub(child) => push_simple_element(out, "sub", child, ctx),
@@ -74,17 +74,21 @@ impl<'a> TextCompound<'a> {
                 out.push_str("\">");
                 ticket.map(|t| vec![t]).unwrap_or_default()
             }
-            Self::H(ids, level, child) => {
-                let fragment_ids: Vec<_> = ids
+            Self::Heading {
+                fragment_ids,
+                level,
+                content,
+            } => {
+                let rewritten_ids: Vec<_> = fragment_ids
                     .iter()
                     .flat_map(|id| ctx.map.get(id.as_ref()))
                     .map(|n| format!("#{}", n))
                     .collect();
-                let attr = fragment_ids
+                let attr = rewritten_ids
                     .is_empty()
                     .not()
-                    .then(|| ("id".to_string(), fragment_ids.join(" ")));
-                push_element(out, level.to_str(), attr, child, ctx)
+                    .then(|| ("id".to_string(), rewritten_ids.join(" ")));
+                push_element(out, level.to_str(), attr, content, ctx)
             }
             Self::Ul(items) => push_container(out, "il", |out| {
                 items
@@ -93,11 +97,14 @@ impl<'a> TextCompound<'a> {
                     .collect()
             }),
             Self::P(child) => push_simple_element(out, "p", child, ctx),
-            Self::Table(rows) => push_container(out, "table", |out| {
-                rows.iter()
+            Self::Table(table) => push_container(out, "table", |out| {
+                table
+                    .rows
+                    .iter()
                     .flat_map(|row| {
                         push_container(out, "tr", |out| {
-                            row.iter()
+                            row.cells
+                                .iter()
                                 .flat_map(|cell| {
                                     push_simple_element(out, cell.html_tag(), cell.content(), ctx)
                                 })
