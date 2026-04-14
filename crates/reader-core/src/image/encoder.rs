@@ -14,7 +14,7 @@ use once_cell::sync::OnceCell;
 use ravif::Encoder;
 use rgb::RGBA;
 
-use crate::{config::CONFIG, utils::sha256};
+use crate::{config::CONFIG, hash::sha256};
 
 use super::{ImageError, ImageTicket, ResolvedImage};
 

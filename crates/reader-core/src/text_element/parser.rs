@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use crate::{
     context::Context,
     html_node::HTMLNode,
-    utils::{canonical_tag, extract_image_src},
+    urls::{canonical_tag, extract_image_src},
 };
 
 use super::{Row, Table, TableCell, TextCompound};
@@ -77,8 +77,7 @@ impl<'a> TextCompound<'a> {
             "p" => {
                 let is_code_block = attrs
                     .get("class")
-                    .map(|class| class.contains("code"))
-                    .unwrap_or(false);
+                    .is_some_and(|class| class.contains("code"));
                 if is_code_block {
                     let mut text = node.get_text();
                     text.push('\n');
@@ -117,10 +116,13 @@ impl<'a> TextCompound<'a> {
                 let body = Self::from_array(ctx, children)?;
                 // Drop a heading whose text matches the page title — we
                 // don't want to render the title twice.
-                if let Some(page_title) = &ctx.meta.title {
-                    if alphanumeric_eq(page_title, &body.text()) {
-                        return None;
-                    }
+                let duplicates_page_title = ctx
+                    .meta
+                    .title
+                    .as_deref()
+                    .is_some_and(|title| alphanumeric_eq(title, &body.text()));
+                if duplicates_page_title {
+                    return None;
                 }
                 let fragment_ids: Vec<&str> = attrs
                     .get("id")

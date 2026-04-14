@@ -7,7 +7,7 @@ use crate::{
     context::Context,
     image::{get_image_url, ImageTicket},
     text_element::TextCompound,
-    utils::is_html,
+    urls::is_html,
 };
 
 const PUNCTUATION: &str = ".,;:!?()[]{}";
@@ -19,16 +19,12 @@ impl<'a> TextCompound<'a> {
     pub fn html(&'a self, ctx: &mut Context, out: &mut String) -> Vec<ImageTicket> {
         match self {
             Self::Raw(a) => {
-                // If the raw text starts with punctuation, eat the trailing
+                // If the raw text starts with punctuation, eat a trailing
                 // space from whatever was just emitted so the result reads
                 // like `sentence, foo` rather than `sentence , foo`.
-                if let Some(first) = a.chars().next() {
-                    if PUNCTUATION.contains(first) {
-                        match out.pop() {
-                            Some(' ') | None => (),
-                            Some(restored) => out.push(restored),
-                        }
-                    }
+                let starts_with_punct = a.chars().next().is_some_and(|c| PUNCTUATION.contains(c));
+                if starts_with_punct && out.ends_with(' ') {
+                    out.pop();
                 }
                 out.push_str(&html_escape::encode_text(a));
                 vec![]

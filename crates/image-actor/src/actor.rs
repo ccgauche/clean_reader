@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use ractor::{Actor, ActorProcessingErr, ActorRef};
+use reader_core::http::http_get_bytes;
 use reader_core::image::{encode_avif, ImageError};
-use reader_core::utils::http_get_bytes;
 
 use crate::message::ImageMsg;
 

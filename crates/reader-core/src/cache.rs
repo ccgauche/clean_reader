@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::{cache_error::CacheError, config::CONFIG, utils::sha256};
+use crate::{cache_error::CacheError, config::CONFIG, hash::sha256};
 
 type Result<T> = std::result::Result<T, CacheError>;
 

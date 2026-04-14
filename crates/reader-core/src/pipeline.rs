@@ -14,14 +14,9 @@ use std::io::Cursor;
 use html5ever::tendril::TendrilSink;
 
 use crate::{
-    context::Context,
-    html_node::HTMLNode,
-    pipeline_error::PipelineError,
-    render_mode::RenderMode,
-    score_implementation::starts_with_image,
-    text_element::TextCompound,
-    title_extractor,
-    utils::{self, render_article},
+    context::Context, html_node::HTMLNode, http, pipeline_error::PipelineError,
+    render_mode::RenderMode, score_implementation::starts_with_image, template::render_article,
+    text_element::TextCompound, title_extractor,
 };
 
 type Result<T> = std::result::Result<T, PipelineError>;
@@ -41,12 +36,12 @@ pub async fn render(url: &str, min_id: &str, mode: RenderMode) -> Result<String>
 /// linked and reachable. A malformed link or failed AMP fetch falls back
 /// to the original HTML rather than erroring.
 async fn fetch_with_amp_fallback(url: &str) -> Result<String> {
-    let original = utils::http_get(url).await?;
+    let original = http::http_get(url).await?;
     let Some(amp_url) = extract_amp_url(&original) else {
         return Ok(original);
     };
     eprintln!("Using AMPHTML: {}", amp_url);
-    Ok(utils::http_get(&amp_url).await.unwrap_or(original))
+    Ok(http::http_get(&amp_url).await.unwrap_or(original))
 }
 
 /// Scan raw HTML for a `rel="amphtml"` link and return its target.

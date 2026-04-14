@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use markup5ever_rcdom::{Handle, NodeData};
 
-use crate::{html_node_error::NodeError, utils::canonical_tag};
+use crate::{html_node_error::NodeError, urls::canonical_tag};
 
 /// Elements we drop unconditionally — structural noise that cannot
 /// contain article content.
