@@ -14,3 +14,4 @@ page-actor.workspace = true
 actix-web.workspace = true
 tokio.workspace = true
 base64.workspace = true
+thiserror.workspace = true

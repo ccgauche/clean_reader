@@ -14,7 +14,8 @@ use reqwest::{
 use crate::{
     config::CONFIG,
     context::Context,
-    error::{Error, Result},
+    http_error::HttpError,
+    pipeline_error::PipelineError,
     text_element::{Header, TextCompound},
 };
 
@@ -201,16 +202,16 @@ fn latin1_to_string(bytes: &[u8]) -> String {
 }
 
 /// Blocking image fetch — called from the std::thread image-actor worker.
-pub fn http_get_bytes(url: &str) -> Result<Vec<u8>> {
+pub fn http_get_bytes(url: &str) -> std::result::Result<Vec<u8>, HttpError> {
     let resp = BLOCKING_CLIENT.get(url).send()?;
     if resp.content_length().unwrap_or(0) > IMAGE_SIZE_LIMIT {
-        return Err(Error::ResponseTooLarge {
+        return Err(HttpError::TooLarge {
             limit: IMAGE_SIZE_LIMIT,
         });
     }
     let bytes = resp.bytes()?;
     if bytes.len() as u64 > IMAGE_SIZE_LIMIT {
-        return Err(Error::ResponseTooLarge {
+        return Err(HttpError::TooLarge {
             limit: IMAGE_SIZE_LIMIT,
         });
     }
@@ -221,16 +222,16 @@ pub fn http_get_bytes(url: &str) -> Result<Vec<u8>> {
 /// declared pages byte-for-byte (we don't get perfect codepoint mapping
 /// but we avoid `lossy` replacement for the first 256 code points) and
 /// returns `lossy` UTF-8 otherwise.
-pub async fn http_get(url: &str) -> Result<String> {
+pub async fn http_get(url: &str) -> std::result::Result<String, HttpError> {
     let resp = ASYNC_CLIENT.get(url).send().await?;
     if resp.content_length().unwrap_or(0) > CONFIG.max_size {
-        return Err(Error::ResponseTooLarge {
+        return Err(HttpError::TooLarge {
             limit: CONFIG.max_size,
         });
     }
     let bytes = resp.bytes().await?;
     if bytes.len() as u64 > CONFIG.max_size {
-        return Err(Error::ResponseTooLarge {
+        return Err(HttpError::TooLarge {
             limit: CONFIG.max_size,
         });
     }
@@ -276,7 +277,10 @@ fn article_header<'a>(ctx: &'a Context<'a>) -> [TextCompound<'a>; 2] {
 /// all workers are launched before we start blocking) and then wait on
 /// each one with a bounded timeout before serializing the template.
 #[allow(clippy::needless_collect)]
-pub fn render_article(parts: &[TextCompound], ctx: &mut Context) -> Result<String> {
+pub fn render_article(
+    parts: &[TextCompound],
+    ctx: &mut Context,
+) -> std::result::Result<String, PipelineError> {
     use askama::Template;
 
     let ctx_snapshot = ctx.clone();
@@ -304,5 +308,5 @@ pub fn render_article(parts: &[TextCompound], ctx: &mut Context) -> Result<Strin
         download_link,
     }
     .render()
-    .map_err(|e| Error::Render(e.to_string()))
+    .map_err(|e| PipelineError::Render(e.to_string()))
 }

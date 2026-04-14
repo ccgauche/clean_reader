@@ -1,69 +1,37 @@
-use thiserror::Error;
+//! Crate-root error aggregator.
+//!
+//! Each module in reader-core has its own narrow error type
+//! (`HttpError`, `NodeError`, `CacheError`, `ImageError`, `PipelineError`).
+//! This module's `Error` is the union of those — downstream crates that
+//! want a single error type to `?` through can use this one, while
+//! functions internal to the module hierarchy return their narrower
+//! types.
+
+use crate::cache_error::CacheError;
+use crate::html_node_error::NodeError;
+use crate::http_error::HttpError;
+use crate::image::ImageError;
+use crate::pipeline_error::PipelineError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("HTTP request failed: {0}")]
-    Http(#[from] reqwest::Error),
+    #[error(transparent)]
+    Http(#[from] HttpError),
 
-    #[error("Response body exceeded {limit} bytes")]
-    ResponseTooLarge { limit: u64 },
+    #[error(transparent)]
+    Node(#[from] NodeError),
 
-    #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Cache(#[from] CacheError),
 
-    #[error("Invalid base64 payload: {0}")]
-    Base64(#[from] base64::DecodeError),
+    #[error(transparent)]
+    Image(#[from] ImageError),
 
-    #[error("Invalid UTF-8 payload: {0}")]
-    Utf8(#[from] std::string::FromUtf8Error),
-
-    #[error("Invalid URL: {0}")]
-    InvalidUrl(String),
-
-    #[error("No article content could be extracted")]
-    EmptyArticle,
-
-    #[error("Readability extraction failed: {0}")]
-    Readability(String),
-
-    #[error("SQLite error: {0}")]
-    Sqlite(#[from] rusqlite::Error),
-
-    #[error("URL store mutex poisoned")]
-    DbPoisoned,
-
-    #[error("Template render failed: {0}")]
-    Render(String),
-
-    #[error("Short id not found in database")]
-    UnknownShortId,
-
-    #[error("Skipping <{tag}>: tag is in the blocklist")]
-    BlockedTag { tag: String },
-
-    #[error("Skipping <{tag}>: no children")]
-    EmptyNode { tag: String },
-
-    #[error("Skipping empty text node")]
-    EmptyText,
-
-    #[error("Skipping comment node")]
-    CommentNode,
-
-    #[error("Image decode failed: {0}")]
-    ImageDecode(#[from] image::ImageError),
-
-    #[error("AVIF encode failed: {0}")]
-    AvifEncode(String),
-
-    #[error("Unsupported image pixel format")]
-    UnsupportedImageFormat,
+    #[error(transparent)]
+    Pipeline(#[from] PipelineError),
 
     #[error("Blocking worker panicked")]
     BlockingCanceled,
-
-    #[error("Actor error: {0}")]
-    Actor(String),
 }

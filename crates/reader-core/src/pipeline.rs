@@ -15,23 +15,26 @@ use html5ever::tendril::TendrilSink;
 
 use crate::{
     context::Context,
-    error::{Error, Result},
     html_node::HTMLNode,
+    pipeline_error::PipelineError,
     render_mode::RenderMode,
-    score_implementation::contains_image,
+    score_implementation::starts_with_image,
     text_element::TextCompound,
     title_extractor,
     utils::{self, render_article},
 };
 
+type Result<T> = std::result::Result<T, PipelineError>;
+
 /// Fetch a URL and render it through the reader pipeline.
 pub async fn render(url: &str, min_id: &str, mode: RenderMode) -> Result<String> {
     let html = fetch_with_amp_fallback(url).await?;
-    let parsed_url = reqwest::Url::parse(url).map_err(|e| Error::InvalidUrl(e.to_string()))?;
+    let parsed_url =
+        reqwest::Url::parse(url).map_err(|e| PipelineError::InvalidUrl(e.to_string()))?;
     let min_id = min_id.to_string();
     tokio::task::spawn_blocking(move || render_fetched_html(html, parsed_url, min_id, mode))
         .await
-        .map_err(|_| Error::BlockingCanceled)?
+        .map_err(|_| PipelineError::BlockingCanceled)?
 }
 
 /// Download the article HTML, replacing it with the AMP version if one is
@@ -69,7 +72,7 @@ fn render_fetched_html(
     // Readability (Firefox reader-view algorithm) picks the article
     // subtree and returns it as a serialized HTML fragment.
     let product = readability::extractor::extract(&mut Cursor::new(html), &parsed_url)
-        .map_err(|e| Error::Readability(e.to_string()))?;
+        .map_err(|e| PipelineError::Readability(e.to_string()))?;
     if meta.title.is_none() && !product.title.is_empty() {
         meta.title = Some(product.title);
     }
@@ -90,7 +93,8 @@ fn render_fetched_html(
         map: HashMap::new(),
         count: 0,
     };
-    let article = TextCompound::from_node(&mut ctx, &html_tree).ok_or(Error::EmptyArticle)?;
+    let article =
+        TextCompound::from_node(&mut ctx, &html_tree).ok_or(PipelineError::EmptyArticle)?;
 
     // Drop a redundant leading H1 if we already have a page title.
     let article = if ctx.meta.title.is_some() {
@@ -107,7 +111,7 @@ fn render_fetched_html(
 
     // Suppress the hero metadata image if the article body already starts
     // with an image — otherwise we'd show two of the same picture.
-    if contains_image(&html_tree).0 {
+    if starts_with_image(&html_tree) {
         ctx.meta.image = None;
     }
 

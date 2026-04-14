@@ -1,15 +1,20 @@
+mod error;
+
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 use reader_core::cache::{self, get_shortened_from_url, get_url_for_shortened};
 use reader_core::config::CONFIG;
-use reader_core::error::{Error, Result};
 use reader_core::RenderMode;
 use tokio::fs;
+
+use crate::error::ServerError;
+
+type Result<T> = std::result::Result<T, ServerError>;
 
 #[get("/r/{base64url}")]
 async fn index_r(base64url: web::Path<String>) -> HttpResponse {
     let output: Result<String> = (|| {
         let url = String::from_utf8(base64::decode(base64url.replace('_', "/"))?)?;
-        get_shortened_from_url(&url)
+        Ok(get_shortened_from_url(&url)?)
     })();
     match output {
         Ok(short) => HttpResponse::MovedPermanently()
@@ -23,7 +28,7 @@ async fn index_r(base64url: web::Path<String>) -> HttpResponse {
 /// else ask the page actor to render it and store the result.
 async fn serve_short(short: String, mode: RenderMode) -> HttpResponse {
     let output: Result<String> = async {
-        let url = get_url_for_shortened(&short)?.ok_or(Error::UnknownShortId)?;
+        let url = get_url_for_shortened(&short)?.ok_or(ServerError::UnknownShortId)?;
         eprintln!("serving {}", url);
         if let Some(cached) = cache::try_cached(&url).await? {
             return Ok(cached);
@@ -35,7 +40,7 @@ async fn serve_short(short: String, mode: RenderMode) -> HttpResponse {
     .await;
     match output {
         Ok(html) => HttpResponse::Ok().content_type("text/html").body(html),
-        Err(Error::UnknownShortId) => HttpResponse::NotFound().body("unknown short id"),
+        Err(ServerError::UnknownShortId) => HttpResponse::NotFound().body("unknown short id"),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }

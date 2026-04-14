@@ -9,10 +9,7 @@ use std::collections::HashMap;
 
 use markup5ever_rcdom::{Handle, NodeData};
 
-use crate::{
-    error::{Error, Result},
-    utils::canonical_tag,
-};
+use crate::{html_node_error::NodeError, utils::canonical_tag};
 
 /// Elements we drop unconditionally — structural noise that cannot
 /// contain article content.
@@ -65,12 +62,12 @@ impl HTMLNode {
         out
     }
 
-    pub fn from_handle(handle: &Handle) -> Result<HTMLNode> {
+    pub fn from_handle(handle: &Handle) -> Result<HTMLNode, NodeError> {
         // Text nodes short-circuit: no pruning rules apply.
         if let NodeData::Text { contents } = &handle.data {
             let text = contents.borrow();
             return if text.trim().is_empty() {
-                Err(Error::EmptyText)
+                Err(NodeError::EmptyText)
             } else {
                 Ok(Self::Text(text.to_string()))
             };
@@ -86,12 +83,12 @@ impl HTMLNode {
                     .map(|a| (a.name.local.to_string(), a.value.to_string()))
                     .collect::<HashMap<_, _>>(),
             ),
-            _ => return Err(Error::CommentNode),
+            _ => return Err(NodeError::CommentNode),
         };
 
         let tag = canonical_tag(&raw_tag);
         if BLOCKED_ELEMENTS.contains(&tag) {
-            return Err(Error::BlockedTag {
+            return Err(NodeError::BlockedTag {
                 tag: tag.to_owned(),
             });
         }
@@ -113,7 +110,7 @@ impl HTMLNode {
         }
 
         if children.is_empty() {
-            return Err(Error::EmptyNode {
+            return Err(NodeError::EmptyNode {
                 tag: tag.to_owned(),
             });
         }

@@ -131,21 +131,8 @@ impl<'a> TextCompound<'a> {
             "figure" | "figcaption" => {
                 // Prefer the `<figcaption>` child if one is present as the
                 // last element; otherwise fall back to the figure body.
-                let inner = if let Some(HTMLNode::Element {
-                    tag: last_tag,
-                    children: caption_children,
-                    ..
-                }) = children.last()
-                {
-                    if last_tag == "figcaption" {
-                        Self::from_array(ctx, caption_children)?
-                    } else {
-                        Self::from_array(ctx, children)?
-                    }
-                } else {
-                    Self::from_array(ctx, children)?
-                };
-                Some(Self::quote(inner))
+                let target = figcaption_children(children).unwrap_or(children);
+                Self::from_array(ctx, target).map(Self::quote)
             }
             "quote" | "blockquote" => Self::from_array(ctx, children).map(Self::quote),
             "cite" | "code" | "pre" => Some(Self::Code(node.get_text())),
@@ -182,6 +169,16 @@ fn lower_cell<'a>(ctx: &mut Context<'a>, cell_node: &'a HTMLNode) -> Option<Tabl
         Some("th") => TableCell::Header(content),
         _ => TableCell::Data(content),
     })
+}
+
+/// If the last child of a `<figure>` is a `<figcaption>`, return its
+/// children. Otherwise return `None` — the caller falls back to the
+/// figure body.
+fn figcaption_children(siblings: &[HTMLNode]) -> Option<&[HTMLNode]> {
+    match siblings.last()? {
+        HTMLNode::Element { tag, children, .. } if tag == "figcaption" => Some(children),
+        _ => None,
+    }
 }
 
 /// Whether two strings are equal after dropping all non-ASCII-alphanumeric

@@ -6,8 +6,10 @@
 //! trigger encoding without importing this crate.
 
 mod actor;
+mod error;
 mod message;
 
+pub use error::ImageActorError;
 pub use message::ImageMsg;
 
 use std::sync::mpsc;
@@ -15,21 +17,20 @@ use std::sync::mpsc;
 use once_cell::sync::OnceCell;
 use ractor::concurrency::JoinHandle;
 use ractor::{Actor, ActorRef};
-use reader_core::error::{Error, Result};
 use reader_core::image::{register_encoder, EncoderFn, ImageTicket};
 
 use actor::ImageActor;
 
-/// Keep the actor JoinHandle alive for the lifetime of the process so the
-/// actor isn't collected out from under us after `boot()` returns.
+/// Keep the actor JoinHandle alive for the lifetime of the process so
+/// the actor isn't collected out from under us after `boot()` returns.
 static ACTOR_HANDLE: OnceCell<JoinHandle<()>> = OnceCell::new();
 
 /// Spawn the image actor and register its encoder with reader-core.
-pub async fn boot() -> Result<()> {
+pub async fn boot() -> Result<(), ImageActorError> {
     let (actor_ref, handle): (ActorRef<ImageMsg>, JoinHandle<()>) =
         Actor::spawn(Some("image".into()), ImageActor, ())
             .await
-            .map_err(|e| Error::Actor(format!("spawn ImageActor: {}", e)))?;
+            .map_err(|e| ImageActorError::SpawnFailed(e.to_string()))?;
     let _ = ACTOR_HANDLE.set(handle);
 
     let encoder: EncoderFn = Box::new(move |url, cache_path| {

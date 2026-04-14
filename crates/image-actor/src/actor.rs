@@ -1,5 +1,7 @@
+use std::path::Path;
+
 use ractor::{Actor, ActorProcessingErr, ActorRef};
-use reader_core::image::encode_avif;
+use reader_core::image::{encode_avif, ImageError};
 use reader_core::utils::http_get_bytes;
 
 use crate::message::ImageMsg;
@@ -35,26 +37,24 @@ impl Actor for ImageActor {
             done,
         } = msg;
         std::thread::spawn(move || {
-            match http_get_bytes(&url) {
-                Ok(bytes) => match encode_avif(&bytes) {
-                    Ok(avif) => {
-                        if let Some(parent) = cache_path.parent() {
-                            if let Err(e) = std::fs::create_dir_all(parent) {
-                                eprintln!("mkdir {} failed: {}", parent.display(), e);
-                                let _ = done.send(());
-                                return;
-                            }
-                        }
-                        if let Err(e) = std::fs::write(&cache_path, &avif) {
-                            eprintln!("write {} failed: {}", cache_path.display(), e);
-                        }
-                    }
-                    Err(e) => eprintln!("encode {}: {}", url, e),
-                },
-                Err(e) => eprintln!("fetch {}: {}", url, e),
+            if let Err(e) = fetch_encode_write(&url, &cache_path) {
+                eprintln!("image worker {}: {}", url, e);
             }
             let _ = done.send(());
         });
         Ok(())
     }
+}
+
+/// Pure linear pipeline: fetch, encode, write. Using `?` keeps nesting
+/// flat — the old version had `match` inside `match` inside `if let` at
+/// four levels deep.
+fn fetch_encode_write(url: &str, cache_path: &Path) -> Result<(), ImageError> {
+    let bytes = http_get_bytes(url)?;
+    let avif = encode_avif(&bytes)?;
+    if let Some(parent) = cache_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(cache_path, &avif)?;
+    Ok(())
 }

@@ -68,11 +68,11 @@ impl<'a> TextCompound<'a> {
                 }
             }
             Self::Img(src) => {
-                let (rewritten, ticket) = get_image_url(src);
+                let resolved = get_image_url(src);
                 out.push_str("<img src=\"");
-                out.push_str(&rewritten);
+                out.push_str(&resolved.url);
                 out.push_str("\">");
-                ticket.map(|t| vec![t]).unwrap_or_default()
+                resolved.ticket.map(|t| vec![t]).unwrap_or_default()
             }
             Self::Heading {
                 fragment_ids,

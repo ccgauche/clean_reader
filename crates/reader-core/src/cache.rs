@@ -9,11 +9,9 @@ use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::{
-    config::CONFIG,
-    error::{Error, Result},
-    utils::sha256,
-};
+use crate::{cache_error::CacheError, config::CONFIG, utils::sha256};
+
+type Result<T> = std::result::Result<T, CacheError>;
 
 /// Length (in hex chars) of the short id used in `/m/{…}` URLs. 6 hex
 /// chars = 24 bits of collision space, which is fine for a single-user
@@ -41,7 +39,7 @@ static DB: Lazy<Mutex<Connection>> = Lazy::new(|| {
 });
 
 pub fn get_url_for_shortened(shortened: &str) -> Result<Option<String>> {
-    let conn = DB.lock().map_err(|_| Error::DbPoisoned)?;
+    let conn = DB.lock().map_err(|_| CacheError::MutexPoisoned)?;
     Ok(conn
         .query_row(
             "SELECT url FROM urls WHERE short = ?1",
@@ -53,7 +51,7 @@ pub fn get_url_for_shortened(shortened: &str) -> Result<Option<String>> {
 
 pub fn get_shortened_from_url(url: &str) -> Result<String> {
     let short = sha256(url)[..SHORT_ID_LEN].to_owned();
-    let conn = DB.lock().map_err(|_| Error::DbPoisoned)?;
+    let conn = DB.lock().map_err(|_| CacheError::MutexPoisoned)?;
     conn.execute(
         "INSERT OR IGNORE INTO urls (short, url) VALUES (?1, ?2)",
         params![short, url],
@@ -80,7 +78,7 @@ pub async fn try_cached(url: &str) -> Result<Option<String>> {
     match tokio::fs::read_to_string(cache_path(url)).await {
         Ok(html) => Ok(Some(html)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(Error::Io(e)),
+        Err(e) => Err(CacheError::Io(e)),
     }
 }
 
