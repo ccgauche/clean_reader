@@ -63,10 +63,7 @@ pub enum Error {
 
     #[error("Blocking worker panicked")]
     BlockingCanceled,
-}
 
-impl From<actix_web::error::BlockingError> for Error {
-    fn from(_: actix_web::error::BlockingError) -> Self {
-        Error::BlockingCanceled
-    }
+    #[error("Actor error: {0}")]
+    Actor(String),
 }

@@ -1,23 +1,8 @@
-mod actors;
-mod cache;
-mod config;
-mod error;
-mod html_node;
-mod image;
-mod pipeline;
-mod score_implementation;
-mod text_element;
-mod text_parser;
-mod title_extractor;
-mod utils;
-
-use crate::error::{Error, Result};
-
 use actix_web::{get, web, App, HttpResponse, HttpServer};
-use cache::{get_file, get_shortened_from_url};
+use reader_core::cache::{self, get_shortened_from_url, get_url_for_shortened};
+use reader_core::config::CONFIG;
+use reader_core::error::{Error, Result};
 use tokio::fs;
-
-use crate::{cache::get_url_for_shortened, config::CONFIG};
 
 #[get("/r/{base64url}")]
 async fn index_r(base64url: web::Path<String>) -> HttpResponse {
@@ -33,11 +18,18 @@ async fn index_r(base64url: web::Path<String>) -> HttpResponse {
     }
 }
 
+/// Resolve a short id to a URL, serve from the disk cache if enabled, else
+/// ask the page actor to render it and store the result.
 async fn serve_short(short: String, as_download: bool) -> HttpResponse {
     let output: Result<String> = async {
         let url = get_url_for_shortened(&short)?.ok_or(Error::UnknownShortId)?;
         println!("{}", url);
-        get_file(&url, &short, as_download).await
+        if let Some(cached) = cache::try_cached(&url).await? {
+            return Ok(cached);
+        }
+        let rendered = page_actor::render_page(&url, &short, as_download).await?;
+        cache::store(&url, &rendered).await;
+        Ok(rendered)
     }
     .await;
     match output {
@@ -53,7 +45,13 @@ async fn index_m(short: web::Path<String>) -> HttpResponse {
 
 #[get("/i/{short}")]
 async fn index_i(short: web::Path<String>) -> HttpResponse {
-    match fs::read(format!("cache/images/{}.avif", short.into_inner())).await {
+    match fs::read(format!(
+        "{}/images/{}.avif",
+        CONFIG.cache_folder,
+        short.into_inner()
+    ))
+    .await
+    {
         Ok(e) => HttpResponse::Ok().content_type("image/avif").body(e),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -72,8 +70,12 @@ async fn main() -> std::io::Result<()> {
     println!("Clean Reader listening on {}", base);
     println!("Try it: {}/r/{}  ({})", base, example_encoded, example_url);
 
-    if let Err(e) = actors::init().await {
-        eprintln!("failed to start actors: {}", e);
+    if let Err(e) = image_actor::boot().await {
+        eprintln!("failed to start image actor: {}", e);
+        return Err(std::io::Error::other(e.to_string()));
+    }
+    if let Err(e) = page_actor::boot().await {
+        eprintln!("failed to start page actor: {}", e);
         return Err(std::io::Error::other(e.to_string()));
     }
 

@@ -212,11 +212,13 @@ pub fn gen_html_2(parts: &[TextCompound], ctx: &mut Context) -> Result<String> {
     .flat_map(|x| x.html(ctx, &mut body))
     .collect::<Vec<_>>();
 
-    // Image workers run via the ImageActor on their own OS threads. Wait on
-    // each ticket so the `/i/{hash}.avif` cache files are on disk before the
-    // HTTP response goes out (`wait_for_image` bounds the wait with a
-    // timeout so a stuck worker can't hold the response open forever).
-    joinlist.into_iter().for_each(crate::actors::wait_for_image);
+    // Image workers run via the registered image backend on their own OS
+    // threads. Wait on each ticket so the `/i/{hash}.avif` cache files are
+    // on disk before the HTTP response goes out. recv is bounded by a
+    // timeout so a stuck worker can't hold the response open forever.
+    for ticket in joinlist {
+        let _ = ticket.done.recv_timeout(std::time::Duration::from_secs(15));
+    }
 
     let download_link = (!ctx.download).then(|| format!("/d/{}", ctx.min_id));
     let has_code = body.contains("<code>");

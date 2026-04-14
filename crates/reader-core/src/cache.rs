@@ -1,10 +1,15 @@
+//! URL short-id store + optional on-disk HTML cache.
+//!
+//! This module owns nothing beyond a SQLite connection and a small
+//! filesystem helper. It does not know about the rendering pipeline — the
+//! server orchestrates "cache miss → call page actor → store result".
+
 use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::{
-    actors,
     config::CONFIG,
     error::{Error, Result},
     utils::sha256,
@@ -51,17 +56,43 @@ pub fn get_shortened_from_url(url: &str) -> Result<String> {
     Ok(short)
 }
 
-pub async fn get_file(url: &str, min_id: &str, download: bool) -> Result<String> {
-    if CONFIG.enable_cache {
-        let cache_file = format!("{}/{}.html", CONFIG.cache_folder, sha256(url));
-        if let Ok(e) = tokio::fs::read_to_string(&cache_file).await {
-            Ok(e)
-        } else {
-            let html = actors::render_page(url, min_id, download).await?;
-            let _ = tokio::fs::write(cache_file, &html).await;
-            Ok(html)
+/// Is on-disk HTML caching enabled by config?
+pub fn is_enabled() -> bool {
+    CONFIG.enable_cache
+}
+
+/// Deterministic cache path for an article URL.
+pub fn cache_path(url: &str) -> String {
+    format!("{}/{}.html", CONFIG.cache_folder, sha256(url))
+}
+
+/// Try to read a cached render from disk. Returns `Ok(None)` on a miss so
+/// the caller can tell that apart from a hard I/O error.
+pub async fn try_cached(url: &str) -> Result<Option<String>> {
+    if !is_enabled() {
+        return Ok(None);
+    }
+    match tokio::fs::read_to_string(cache_path(url)).await {
+        Ok(html) => Ok(Some(html)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(Error::Io(e)),
+    }
+}
+
+/// Write a rendered article to disk. Best-effort: a failed write is logged
+/// but does not propagate, because the in-memory response is still valid.
+pub async fn store(url: &str, html: &str) {
+    if !is_enabled() {
+        return;
+    }
+    let path = cache_path(url);
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        if let Err(e) = tokio::fs::create_dir_all(parent).await {
+            eprintln!("mkdir cache {}: {}", parent.display(), e);
+            return;
         }
-    } else {
-        actors::render_page(url, min_id, download).await
+    }
+    if let Err(e) = tokio::fs::write(&path, html).await {
+        eprintln!("cache write {}: {}", path, e);
     }
 }

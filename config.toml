@@ -1,6 +1,6 @@
 enable_cache = false
 recompress_images = true
-cache_folder = "cache"
-database_file = "template/db.sqlite"
+cache_folder = "data/cache"
+database_file = "data/db.sqlite"
 address = "127.0.0.1:8080"
 max_size = 8048576

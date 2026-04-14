@@ -1,0 +1,9 @@
+[package]
+name = "image-actor"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+reader-core.workspace = true
+ractor.workspace = true
+once_cell.workspace = true

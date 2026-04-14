@@ -1,12 +1,21 @@
-use std::{io::Cursor, path::Path, sync::mpsc::Receiver};
+//! Image re-encoding helpers shared across crates.
+//!
+//! reader-core knows how to decode any format `image` supports and hand
+//! ravif a tightly-packed RGBA buffer. What it does not know is *where* the
+//! re-encode happens — that's the image-actor crate's job. To keep the dep
+//! graph acyclic, the image-actor registers a closure here at boot time via
+//! [`register_encoder`]; `get_image_url` calls through the registered
+//! closure when the template renderer asks for an image.
+
+use std::{io::Cursor, path::Path, path::PathBuf, sync::mpsc::Receiver};
 
 use image::io::Reader;
 use imgref::ImgVec;
+use once_cell::sync::OnceCell;
 use ravif::Encoder;
 use rgb::RGBA;
 
 use crate::{
-    actors,
     config::CONFIG,
     error::{Error, Result},
     utils::sha256,
@@ -15,10 +24,25 @@ use crate::{
 const IMAGE_EXT: &[&str] = &[".jpg", ".jpeg", ".png", ".webp", ".bmp", ".avif"];
 
 /// Ticket returned by `get_image_url` while an image re-encode is in flight.
-/// The template renderer waits on it at the end of `gen_html_2` to ensure the
-/// `/i/{hash}.avif` file is on disk before the response is sent.
+/// The template renderer waits on it at the end of `gen_html_2` to ensure
+/// the `/i/{hash}.avif` file is on disk before the response is sent.
 pub struct ImageTicket {
     pub done: Receiver<()>,
+}
+
+/// Function signature of a registered image-encoder backend.
+///
+/// Called with the source URL and the cache-file path we want the `.avif`
+/// written to. Returns a ticket the caller can wait on, or `None` if the
+/// backend declines (no worker available, bad URL, …).
+pub type EncoderFn = Box<dyn Fn(String, PathBuf) -> Option<ImageTicket> + Send + Sync + 'static>;
+
+static ENCODER: OnceCell<EncoderFn> = OnceCell::new();
+
+/// Install the encoder backend. Called once at server startup by the
+/// image-actor crate. Silently ignores a second registration.
+pub fn register_encoder(encoder: EncoderFn) {
+    let _ = ENCODER.set(encoder);
 }
 
 pub fn get_image_url(url: &str) -> (String, Option<ImageTicket>) {
@@ -32,14 +56,16 @@ pub fn get_image_url(url: &str) -> (String, Option<ImageTicket>) {
         return (format!("/i/{}", &hash[..8]), None);
     }
     if IMAGE_EXT.iter().any(|x| url.contains(x)) {
-        if let Some(ticket) = actors::encode_image(url.to_owned(), cache_file.to_owned()) {
-            return (format!("/i/{}", &hash[..8]), Some(ticket));
+        if let Some(encoder) = ENCODER.get() {
+            if let Some(ticket) = encoder(url.to_owned(), cache_file.to_owned()) {
+                return (format!("/i/{}", &hash[..8]), Some(ticket));
+            }
         }
     }
     (url.to_owned(), None)
 }
 
-pub(crate) fn encode_avif(image: &[u8]) -> Result<Vec<u8>> {
+pub fn encode_avif(image: &[u8]) -> Result<Vec<u8>> {
     let img = load_rgba(image, false)?;
     let result = Encoder::new()
         .with_quality(50.0)
